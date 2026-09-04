@@ -7,3 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Reglas de verificación (aplica a opencode y Zed agent, para CUALQUIER prompt)
+
+- NO ejecutar `npm run build` ni ningún build/`next build` como prueba.
+- NO verificar con navegador headless (Edge/Chrome/Playwright/Puppeteer), ni capturas de pantalla, ni CDP.
+- Las pruebas visuales y de funcionamiento las hace el usuario manualmente.
+- Única verificación permitida tras cambiar código: `npm run lint` (eslint).

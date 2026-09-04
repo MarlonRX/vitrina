@@ -1,0 +1,217 @@
+/* ============================================
+   react-day-picker v9 — Styles
+   Responsive sizing + dark theme colors
+   ============================================ */
+
+/* Root container */
+.rdp {
+  padding: 12px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border-radius: 12px;
+  width: fit-content;
+  min-width: 280px;
+}
+
+/* Month grid */
+.rdp-month_grid {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* Caption (month/year header + nav) */
+.rdp-month_caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 12px;
+}
+
+.rdp-caption_label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+/* Navigation buttons */
+.rdp-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rdp-button_previous,
+.rdp-button_next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rdp-button_previous:hover,
+.rdp-button_next:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+
+.rdp-button_previous:disabled,
+.rdp-button_next:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.rdp-chevron {
+  width: 16px;
+  height: 16px;
+}
+
+/* Weekday headers */
+.rdp-weekdays {
+  display: flex;
+  width: 100%;
+}
+
+.rdp-weekday {
+  flex: 1;
+  min-width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: 0;
+  border: none;
+}
+
+/* Weeks container */
+.rdp-weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Single week row */
+.rdp-week {
+  display: flex;
+  width: 100%;
+}
+
+/* Day cell */
+.rdp-day {
+  flex: 1;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  text-align: center;
+  border: none;
+}
+
+/* Day button */
+.rdp-day_button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.rdp-day_button:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+
+.rdp-day_button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Selected day */
+.rdp-selected .rdp-day_button,
+.rdp-day_button[aria-selected="true"] {
+  background: var(--accent-primary) !important;
+  color: var(--text-inverted) !important;
+  font-weight: 700;
+}
+
+.rdp-selected .rdp-day_button:hover {
+  background: var(--accent-hover) !important;
+}
+
+/* Today */
+.rdp-today:not(.rdp-selected) .rdp-day_button {
+  color: var(--accent-primary);
+  font-weight: 700;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+/* Outside month */
+.rdp-outside .rdp-day_button {
+  color: var(--text-tertiary);
+  opacity: 0.4;
+}
+
+.rdp-outside .rdp-day_button:hover {
+  background: transparent;
+}
+
+/* Disabled */
+.rdp-disabled .rdp-day_button {
+  opacity: 0.3;
+  cursor: not-allowed;
+  color: var(--text-tertiary);
+}
+
+.rdp-disabled .rdp-day_button:hover {
+  background: transparent;
+}
+
+/* Hidden */
+.rdp-hidden {
+  visibility: hidden;
+}
+
+/* Responsive: smaller cells on very small viewports */
+@media (max-width: 360px) {
+  .rdp {
+    min-width: 240px;
+    padding: 8px;
+  }
+
+  .rdp-weekday {
+    min-width: 28px;
+    font-size: 10px;
+  }
+
+  .rdp-day {
+    min-width: 28px;
+    height: 32px;
+  }
+
+  .rdp-day_button {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}

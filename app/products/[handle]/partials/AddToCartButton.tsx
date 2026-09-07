@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
 import MyButton from "@/components/UIComponents/MyButton";
+import { MyQuantityStepper } from "@/components/UIComponents/MyQuantityStepper";
 import type { Product, ProductVariant } from "@/lib/shopify/types";
 import { useCartStore } from "@/stores/cart";
 
@@ -38,26 +38,8 @@ export default function AddToCartButton({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex items-center border border-(--border-primary)">
-        <button
-          type="button"
-          aria-label="Restar cantidad"
-          disabled={quantity <= 1}
-          onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-          className="p-2 disabled:opacity-50"
-        >
-          <Minus size={16} />
-        </button>
-        <span className="w-8 text-center tabular-nums">{quantity}</span>
-        <button
-          type="button"
-          aria-label="Sumar cantidad"
-          onClick={() => setQuantity((prev) => prev + 1)}
-          className="p-2"
-        >
-          <Plus size={16} />
-        </button>
-      </div>
+      {/* S-11: stepper artesanal reemplazado por el componente del sistema. */}
+      <MyQuantityStepper value={quantity} onChange={setQuantity} min={1} />
 
       <MyButton
         onClick={handleAdd}

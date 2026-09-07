@@ -1,9 +1,79 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { ProductFacets, ProductFilters } from "@/lib/shopify/types";
-import { Button } from "@/components/ui/button";
+import MyButton from "@/components/UIComponents/MyButton";
+import { MyCheckbox } from "@/components/UIComponents/MyCheckbox";
+import { MyInput } from "@/components/UIComponents/MyInput";
+import { MySelect } from "@/components/UIComponents/MySelect";
+
+// S-11 (sistema de diseño) + S-13 (catálogo masivo): con ~250 productos las
+// facetas crecieron muchísimo, así que el panel se rediseñó:
+// - botón "Aplicar filtros" FIJO arriba del panel (nunca perseguirlo),
+// - grupos de categorías/tags/opciones muestran máx. 5 opciones con "Ver más",
+// - el cuerpo del panel hace scroll interno (max-h) en desktop, pegajoso al
+//   top: el aside nunca estira la página ni produce overflow eterno.
+
+const SORT_OPTIONS = [
+  { value: "RELEVANCE:0", label: "Relevancia" },
+  { value: "PRICE:0", label: "Precio: menor a mayor" },
+  { value: "PRICE:1", label: "Precio: mayor a menor" },
+  { value: "TITLE:0", label: "Título (A-Z)" },
+  { value: "TITLE:1", label: "Título (Z-A)" },
+  { value: "CREATED_AT:1", label: "Más recientes" },
+  { value: "BEST_SELLING:0", label: "Más vendidos" },
+];
+
+const GROUP_LEGEND =
+  "text-[11px] font-semibold uppercase tracking-[0.14em] text-(--text-secondary)";
+
+const COLLAPSED_LIMIT = 5;
+
+/** Lista de opciones que se corta en 5 y ofrece "Ver más"/"Ver menos". */
+function Collapsible({
+  hiddenCount,
+  collapsed,
+  onToggle,
+  children,
+}: {
+  hiddenCount: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      {children}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          className="self-start text-xs font-medium text-(--accent-primary) hover:underline focus-visible:outline-2 focus-visible:outline-(--accent-primary)"
+        >
+          {collapsed ? `Ver más (${hiddenCount})` : "Ver menos"}
+        </button>
+      )}
+    </>
+  );
+}
+
+function useCapped(count: number, selectedIndex = -1) {
+  const [open, setOpen] = useState(false);
+  // Con 5 visibles, el índice seleccionado (si lo hay) también se muestra,
+  // así que reduce en uno los ocultos del contador.
+  const hidden = open
+    ? 0
+    : Math.max(0, count - COLLAPSED_LIMIT - (selectedIndex >= COLLAPSED_LIMIT ? 1 : 0));
+  return {
+    open,
+    collapsed: !open,
+    hidden,
+    toggle: () => setOpen((v) => !v),
+    visible: (i: number) => open || i < COLLAPSED_LIMIT || i === selectedIndex,
+  };
+}
 
 type ProductFiltersProps = {
   facets: ProductFacets;
@@ -15,32 +85,64 @@ export default function ProductFiltersForm({
   filters,
 }: ProductFiltersProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  // S-15: "Aplicar" navega sobre la ruta ACTUAL (/, /products,
+  // /collections/[handle]) en vez de / hardcodeado — los filtros se combinan
+  // sobre cualquier búsqueda/colección sin salir de ella.
+  const pathname = usePathname();
+  const onCollection = /^\/collections\/([^/?#]+)/.exec(pathname);
 
+  // S-13: la búsqueda puede llegar por URL (q=…); el campo vive DENTRO del
+  // panel para poder filtrar sobre cualquier consulta (filtros mixtos).
   const activeTags = new Set(filters.tags);
   const activeOptions = new Set(
     filters.options.map((o) => `${o.name}:${o.value}`),
   );
   const sortValue = `${filters.sortKey ?? "RELEVANCE"}:${filters.reverse ? "1" : "0"}`;
-  const hasActiveFilters =
-    !!filters.search ||
-    !!filters.collection ||
-    filters.tags.length > 0 ||
-    filters.minPrice != null ||
-    filters.maxPrice != null ||
-    filters.options.length > 0;
+  const activeCount =
+    Number(!!filters.collection) +
+    Number(!!filters.search) +
+    filters.tags.length +
+    filters.options.length +
+    Number(filters.minPrice != null || filters.maxPrice != null);
+
+  const cats = useCapped(
+    facets.collections.length,
+    filters.collection
+      ? facets.collections.findIndex((c) => c.handle === filters.collection)
+      : -1,
+  );
+  const selectedTagIdx = facets.tags
+    .map((t, i) => (activeTags.has(t) ? i : -1))
+    .find((i) => i >= 0);
+  const tags = useCapped(facets.tags.length, selectedTagIdx ?? -1);
 
   function applyFilters(formData: FormData) {
     const params = new URLSearchParams();
 
+    const q = (formData.get("q") as string | null)?.trim();
+    if (q) params.set("q", q);
+
     const collection = formData.get("collection") as string | null;
-    if (collection) params.set("collection", collection);
+    // S-15: en /collections/[handle] la categoría de la ruta es el default;
+    // elegir la MISMA conserva la vista de colección, elegir otra (o "todas")
+    // sale al catálogo general con el resto de filtros intactos.
+    let target = pathname;
+    if (onCollection) {
+      if (collection && collection !== onCollection[1]) {
+        params.set("collection", collection);
+        target = "/products";
+      } else if (!collection) {
+        target = "/products";
+      }
+    } else if (collection) {
+      params.set("collection", collection);
+    }
 
     const sort = formData.get("sort") as string | null;
     if (sort) params.set("sort", sort);
 
-    const tags = formData.getAll("tag") as string[];
-    tags.forEach((t) => params.append("tag", t));
+    const tagsSel = formData.getAll("tag") as string[];
+    tagsSel.forEach((t) => params.append("tag", t));
 
     const options = formData.getAll("option") as string[];
     options.forEach((o) => params.append("option", o));
@@ -51,7 +153,8 @@ export default function ProductFiltersForm({
     const maxPrice = formData.get("maxPrice") as string | null;
     if (maxPrice) params.set("maxPrice", maxPrice);
 
-    router.push(`/?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `${target}?${qs}` : target);
     router.refresh();
   }
 
@@ -61,144 +164,192 @@ export default function ProductFiltersForm({
   }
 
   function clearFilters() {
-    router.push("/");
+    router.push(pathname);
     router.refresh();
   }
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-5 border border-(--border-primary) bg-(--bg-surface) p-4"
+      className="sticky top-24 flex max-h-[calc(100dvh-7rem)] min-h-0 flex-col rounded-lg border border-(--border-primary) bg-(--bg-surface) p-4"
     >
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="filter-collection"
-          className="text-sm text-(--text-secondary)"
-        >
-          Categorías
-        </label>
-        <select
-          id="filter-collection"
-          name="collection"
-          defaultValue={filters.collection ?? ""}
-          className="h-9 border border-(--border-primary) bg-(--bg-surface) px-2 text-sm"
-        >
-          <option value="">Todas las colecciones</option>
-          {facets.collections.map((collection) => (
-            <option key={collection.id} value={collection.handle}>
-              {collection.title}
-            </option>
-          ))}
-        </select>
+      {/* Cabecera fija del panel: acción principal siempre a mano */}
+      <div className="flex flex-col gap-3 pb-4">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold uppercase tracking-[0.14em]">
+            Filtros
+          </h2>
+          {activeCount > 0 && (
+            <span className="rounded-full bg-(--accent-primary) px-2 py-0.5 text-[11px] font-semibold text-white">
+              {activeCount} {activeCount === 1 ? "activo" : "activos"}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <MyButton type="submit" className="flex-1">
+            Aplicar filtros
+          </MyButton>
+          {activeCount > 0 && (
+            <MyButton
+              variant="link"
+              color="neutral"
+              type="button"
+              onClick={clearFilters}
+              className="shrink-0 text-(--text-secondary)"
+            >
+              Limpiar
+            </MyButton>
+          )}
+        </div>
+        <MyInput
+          type="search"
+          name="q"
+          aria-label="Buscar en el catálogo"
+          placeholder="Buscar en el catálogo…"
+          defaultValue={filters.search ?? ""}
+        />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="filter-sort"
-          className="text-sm text-(--text-secondary)"
-        >
-          Ordenar por
-        </label>
-        <select
-          id="filter-sort"
+      {/* Cuerpo con scroll interno: el aside no estira la página */}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
+        <fieldset className="flex flex-col gap-2.5">
+          <legend className={GROUP_LEGEND}>Categorías</legend>
+          <MyCheckbox
+            type="radio"
+            name="collection"
+            value=""
+            defaultChecked={!filters.collection}
+            label="Todas las colecciones"
+          />
+          <Collapsible
+            hiddenCount={cats.hidden}
+            collapsed={cats.collapsed}
+            onToggle={cats.toggle}
+          >
+            {facets.collections.map((collection, i) =>
+              cats.visible(i) ? (
+                <MyCheckbox
+                  key={collection.handle}
+                  type="radio"
+                  name="collection"
+                  value={collection.handle}
+                  defaultChecked={filters.collection === collection.handle}
+                  label={collection.title}
+                />
+              ) : null,
+            )}
+          </Collapsible>
+        </fieldset>
+
+        <MySelect
+          label="Ordenar por"
           name="sort"
           defaultValue={sortValue}
-          className="h-9 border border-(--border-primary) bg-(--bg-surface) px-2 text-sm"
-        >
-          <option value="RELEVANCE:0">Relevancia</option>
-          <option value="PRICE:0">Precio: menor a mayor</option>
-          <option value="PRICE:1">Precio: mayor a menor</option>
-          <option value="TITLE:0">Título (A-Z)</option>
-          <option value="TITLE:1">Título (Z-A)</option>
-          <option value="CREATED_AT:1">Más recientes</option>
-          <option value="BEST_SELLING:0">Más vendidos</option>
-        </select>
-      </div>
+          options={SORT_OPTIONS}
+        />
 
-      {facets.tags.length > 0 && (
-        <fieldset className="flex flex-col gap-1">
-          <legend className="text-sm text-(--text-secondary)">Tags</legend>
-          {facets.tags.map((tag) => (
-            <label key={tag} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="tag"
-                value={tag}
-                defaultChecked={activeTags.has(tag)}
-              />
-              {tag}
-            </label>
-          ))}
-        </fieldset>
-      )}
-
-      <fieldset className="flex flex-col gap-1">
-        <legend className="text-sm text-(--text-secondary)">
-          Rango de precio
-        </legend>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            name="minPrice"
-            aria-label="Precio mínimo"
-            placeholder={String(facets.price.min)}
-            min={facets.price.min}
-            max={facets.price.max}
-            step="0.01"
-            defaultValue={filters.minPrice ?? ""}
-            className="h-9 w-full min-w-0 border border-(--border-primary) bg-(--bg-surface) px-2 text-sm"
-          />
-          <span className="text-(--text-secondary)">-</span>
-          <input
-            type="number"
-            name="maxPrice"
-            aria-label="Precio máximo"
-            placeholder={String(facets.price.max)}
-            min={facets.price.min}
-            max={facets.price.max}
-            step="0.01"
-            defaultValue={filters.maxPrice ?? ""}
-            className="h-9 w-full min-w-0 border border-(--border-primary) bg-(--bg-surface) px-2 text-sm"
-          />
-        </div>
-      </fieldset>
-
-      {facets.options.map((option) => (
-        <fieldset key={option.name} className="flex flex-col gap-1">
-          <legend className="text-sm text-(--text-secondary)">
-            {option.name}
-          </legend>
-          {option.values.map((value) => {
-            const key = `${option.name}:${value}`;
-            return (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="option"
-                  value={key}
-                  defaultChecked={activeOptions.has(key)}
-                />
-                {value}
-              </label>
-            );
-          })}
-        </fieldset>
-      ))}
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" className="flex-1">
-          Aplicar filtros
-        </Button>
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="text-sm text-(--text-secondary) underline"
-          >
-            Limpiar
-          </button>
+        {facets.tags.length > 0 && (
+          <fieldset className="flex flex-col gap-2.5">
+            <legend className={GROUP_LEGEND}>Tags</legend>
+            <Collapsible
+              hiddenCount={tags.hidden}
+              collapsed={tags.collapsed}
+              onToggle={tags.toggle}
+            >
+              {facets.tags.map((tag, i) =>
+                tags.visible(i) ? (
+                  <MyCheckbox
+                    key={tag}
+                    id={`tag-${tag}`}
+                    name="tag"
+                    value={tag}
+                    defaultChecked={activeTags.has(tag)}
+                    label={tag}
+                  />
+                ) : null,
+              )}
+            </Collapsible>
+          </fieldset>
         )}
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className={GROUP_LEGEND}>Rango de precio</legend>
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <MyInput
+                type="number"
+                name="minPrice"
+                aria-label="Precio mínimo"
+                placeholder={String(facets.price.min)}
+                min={facets.price.min}
+                max={facets.price.max}
+                step="0.01"
+                defaultValue={filters.minPrice ?? ""}
+              />
+            </div>
+            <span aria-hidden className="text-(--text-tertiary)">
+              —
+            </span>
+            <div className="min-w-0 flex-1">
+              <MyInput
+                type="number"
+                name="maxPrice"
+                aria-label="Precio máximo"
+                placeholder={String(facets.price.max)}
+                min={facets.price.min}
+                max={facets.price.max}
+                step="0.01"
+                defaultValue={filters.maxPrice ?? ""}
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        {facets.options.map((option) => (
+          <OptionGroup
+            key={option.name}
+            name={option.name}
+            values={option.values}
+            selected={activeOptions}
+          />
+        ))}
       </div>
     </form>
+  );
+}
+
+/** Grupo de una opción (Color, Vidriado…) también limitado a 5 valores. */
+function OptionGroup({
+  name,
+  values,
+  selected,
+}: {
+  name: string;
+  values: string[];
+  selected: Set<string>;
+}) {
+  const cap = useCapped(values.length, values.findIndex((v) => selected.has(`${name}:${v}`)));
+  return (
+    <fieldset className="flex flex-col gap-2.5">
+      <legend className={GROUP_LEGEND}>{name}</legend>
+      <Collapsible
+        hiddenCount={cap.hidden}
+        collapsed={cap.collapsed}
+        onToggle={cap.toggle}
+      >
+        {values.map((value, i) => {
+          const key = `${name}:${value}`;
+          return cap.visible(i) ? (
+            <MyCheckbox
+              key={key}
+              name="option"
+              value={key}
+              defaultChecked={selected.has(key)}
+              label={value}
+            />
+          ) : null;
+        })}
+      </Collapsible>
+    </fieldset>
   );
 }

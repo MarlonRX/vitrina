@@ -47,7 +47,15 @@ export type Product = {
   featuredImage: Image | null;
   images: { edges: { node: Image }[] };
   options: ProductOption[];
+  // Referencia ligera a colecciones (S-02a06: breadcrumbs en detalle).
+  collections: { edges: { node: CollectionRef }[] };
   variants: { edges: { node: ProductVariant }[] };
+};
+
+export type CollectionRef = {
+  id: string;
+  title: string;
+  handle: string;
 };
 
 export type Collection = {
@@ -83,6 +91,22 @@ export type CollectionByHandleResult = {
   collection: CollectionWithProducts | null;
 };
 
+export type CollectionMetaResult = {
+  collection: Collection | null;
+};
+
+export type SitemapProduct = {
+  handle: string;
+  featuredImage: { url: string } | null;
+};
+
+export type SitemapProductsResponse = {
+  products: {
+    edges: { node: SitemapProduct }[];
+    pageInfo: PageInfo;
+  };
+};
+
 export type FacetOption = {
   name: string;
   values: string[];
@@ -115,4 +139,32 @@ export type ProductFacets = {
 
 export type ProductFacetsResult = {
   facets: ProductFacets;
+};
+
+// --- Checkout real de Shopify (S-01) ---
+
+export type CartLineInput = {
+  merchandiseId: string;
+  quantity: number;
+};
+
+export type CartUserError = {
+  field: string[] | null;
+  message: string;
+};
+
+export type CartCreateResult = {
+  cartCreate: {
+    cart: {
+      id: string;
+      checkoutUrl: string;
+    } | null;
+    userErrors: CartUserError[];
+  };
+};
+
+export type CheckoutResult = {
+  checkoutUrl: string | null;
+  mock: boolean;
+  userErrors: CartUserError[];
 };

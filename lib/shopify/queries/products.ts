@@ -37,6 +37,17 @@ const PRODUCT_FRAGMENT = /* GraphQL */ `
       name
       values
     }
+    # S-02a06: primeras colecciones del producto, para breadcrumbs
+    # (Inicio > Catálogo > Colección > Producto).
+    collections(first: 5) {
+      edges {
+        node {
+          id
+          title
+          handle
+        }
+      }
+    }
     variants(first: 100) {
       edges {
         node {
@@ -79,7 +90,7 @@ export function buildProductsQuery(
   const reverseArg = sortKey && reverse !== undefined ? ", reverse: $reverse" : "";
   const reverseVar = sortKey && reverse !== undefined ? ", $reverse: Boolean" : "";
   return /* GraphQL */ `
-    query Products($first: Int = 12, $query: String = ""${afterVar}${sortKeyVar}${reverseVar}) {
+    query Products($first: Int = 21, $query: String = ""${afterVar}${sortKeyVar}${reverseVar}) {
       products(first: $first, query: $query${afterArg}${sortKeyArg}${reverseArg}) {
         edges {
           node {
@@ -163,16 +174,63 @@ export function buildProductsFacetsQuery(after?: string): string {
   `;
 }
 
+export function buildSitemapProductsQuery(after?: string): string {
+  const afterArg = after ? ", after: $after" : "";
+  const afterVar = after ? ", $after: String" : "";
+  return /* GraphQL */ `
+    query SitemapProducts($first: Int = 250${afterVar}) {
+      products(first: $first${afterArg}) {
+        edges {
+          node {
+            handle
+            featuredImage {
+              url
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  `;
+}
+
+// Meta de colección sin productos (S-04: generateMetadata ligero).
+export const COLLECTION_META_QUERY = /* GraphQL */ `
+  query CollectionMeta($handle: String!) {
+    collection(handle: $handle) {
+      id
+      title
+      handle
+      description
+      image {
+        url
+        altText
+        width
+        height
+      }
+    }
+  }
+`;
+
 export function buildCollectionByHandleQuery(after?: string): string {
   const afterArg = after ? ", after: $after" : "";
   const afterVar = after ? ", $after: String" : "";
   return /* GraphQL */ `
-    query CollectionByHandle($handle: String!, $first: Int = 12${afterVar}) {
+    query CollectionByHandle($handle: String!, $first: Int = 21${afterVar}) {
       collection(handle: $handle) {
         id
         title
         handle
         description
+        image {
+          url
+          altText
+          width
+          height
+        }
         products(first: $first${afterArg}) {
           edges {
             node {

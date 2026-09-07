@@ -40,7 +40,13 @@ export function parseFilters(
 ): ProductFilters {
   const search = toArray(params.q)[0] ?? "";
   const collection = toArray(params.collection)[0] ?? "";
-  const tags = toArray(params.tag).map((t) => t.trim()).filter(Boolean);
+  // S-09 (react-doctor js-flatmap-filter): recorre la lista una sola vez
+  // (trim + descarte de vacíos) en vez de map().filter(Boolean).
+  const tags: string[] = [];
+  for (const raw of toArray(params.tag)) {
+    const tag = raw.trim();
+    if (tag) tags.push(tag);
+  }
   const minPrice = toNumber(params.minPrice);
   const maxPrice = toNumber(params.maxPrice);
   const sortKey = toSortKey(params.sort);
@@ -177,14 +183,20 @@ export function matchesFilters(
   }
 
   for (const option of filters.options) {
-    const values = new Set(
-      product.variants.edges.flatMap((edge) =>
-        edge.node.selectedOptions
-          .filter((o) => o.name === option.name)
-          .map((o) => o.value),
-      ),
-    );
-    if (!values.has(option.value)) return false;
+    // S-09 (react-doctor js-combine-iterations): era flatMap con
+    // filter().map() y un Set intermedio; ahora un solo recorrido con corte
+    // temprano en cuanto aparece el valor buscado.
+    let found = false;
+    for (const edge of product.variants.edges) {
+      for (const selected of edge.node.selectedOptions) {
+        if (selected.name === option.name && selected.value === option.value) {
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) return false;
   }
 
   return true;

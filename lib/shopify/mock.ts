@@ -45,6 +45,17 @@ const mockProducts: Product[] = [
       ],
     },
     options: [{ name: "Color", values: ["Cobre", "Verde"] }],
+    collections: {
+      edges: [
+        {
+          node: {
+            id: "gid://shopify/Collection/1",
+            title: "Hogar",
+            handle: "hogar",
+          },
+        },
+      ],
+    },
     variants: {
       edges: [
         {
@@ -80,6 +91,17 @@ const mockProducts: Product[] = [
       ],
     },
     options: [{ name: "Tamaño", values: ["Mediana", "Grande"] }],
+    collections: {
+      edges: [
+        {
+          node: {
+            id: "gid://shopify/Collection/2",
+            title: "Iluminación",
+            handle: "iluminacion",
+          },
+        },
+      ],
+    },
     variants: {
       edges: [
         {
@@ -167,9 +189,12 @@ export const mockProviders = {
   ): Promise<CollectionByHandleResult> {
     const collection = mockCollections.find((c) => c.handle === handle);
     if (!collection) return { collection: null };
-    const edges = mockProducts
-      .filter((p) => p.tags.includes(handle))
-      .map((node) => ({ node }));
+    // S-09 (react-doctor js-combine-iterations): un solo recorrido en lugar
+    // de filter().map().
+    const edges: { node: Product }[] = [];
+    for (const product of mockProducts) {
+      if (product.tags.includes(handle)) edges.push({ node: product });
+    }
     return {
       collection: {
         ...collection,
@@ -188,10 +213,16 @@ export const mockProviders = {
     if (!collection) {
       return { products: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } } };
     }
+    // S-09 (react-doctor js-combine-iterations): un solo recorrido combinando
+    // ambos predicados antes de ordenar.
+    const matched: Product[] = [];
+    for (const product of mockProducts) {
+      if (product.tags.includes(handle) && matchesFilters(product, filters)) {
+        matched.push(product);
+      }
+    }
     const edges = sortProducts(
-      mockProducts
-        .filter((p) => p.tags.includes(handle))
-        .filter((p) => matchesFilters(p, filters)),
+      matched,
       filters.sortKey,
       filters.reverse,
     ).map((node) => ({ node }));

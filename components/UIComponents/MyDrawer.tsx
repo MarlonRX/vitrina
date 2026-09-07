@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useId } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,35 +23,48 @@ interface MyDrawerProps {
   footer?: React.ReactNode;
 }
 
-const sideClasses: Record<NonNullable<MyDrawerProps["side"]>, string> = {
-  right:
-    "right-0 top-0 h-full border-l data-[state=open]:translate-x-0 data-[state=closed]:translate-x-full",
-  left: "left-0 top-0 h-full border-r data-[state=open]:translate-x-0 data-[state=closed]:-translate-x-full",
-  bottom:
-    "bottom-0 left-0 w-full border-t rounded-t-2xl data-[state=open]:translate-y-0 data-[state=closed]:translate-y-full",
+// S-09 (react-doctor prefer-html-dialog + prefer-use-effect-event +
+// no-noninteractive-element-interactions): el drawer era un div
+// role="dialog" con foco manual, listener de Escape que se resuscribía en
+// cada render del padre y bloqueo de scroll del body a mano. Ahora es un
+// <dialog> nativo showModaled: trampa de foco, Escape, backdrop y bloqueo de
+// scroll vienen gratis. El dialog es una caja transparente que ocupa el
+// viewport; el "overlay" es un botón real (primera capa), y el panel asoma
+// por un lado encima de él.
+const dialogBase = [
+  // caja transparente a pantalla completa (el oscurecido lo pone ::backdrop)
+  "fixed inset-0 m-0 h-full w-full max-h-full max-w-none box-border border-0 bg-transparent p-0 isolate",
+  "backdrop:bg-black/40 backdrop:backdrop-blur-[1px]",
+  "open:block",
+];
+
+const panelClasses: Record<NonNullable<MyDrawerProps["side"]>, string> = {
+  right: "absolute inset-y-0 right-0 h-full w-full border-l",
+  left: "absolute inset-y-0 left-0 h-full w-full border-r",
+  bottom: "absolute inset-x-0 bottom-0 w-full max-h-[55vh] rounded-t-2xl border-t",
 };
 
 const sizeClasses = {
   right: {
-    sm: "w-full sm:w-[24rem]",
-    md: "w-full sm:w-[28rem]",
-    lg: "w-full sm:w-[32rem]",
-    xl: "w-full sm:w-[40rem]",
-    full: "w-full",
+    sm: "sm:w-[24rem]",
+    md: "sm:w-[28rem]",
+    lg: "sm:w-[32rem]",
+    xl: "sm:w-[40rem]",
+    full: "sm:w-full",
   },
   left: {
-    sm: "w-full sm:w-[24rem]",
-    md: "w-full sm:w-[28rem]",
-    lg: "w-full sm:w-[32rem]",
-    xl: "w-full sm:w-[40rem]",
-    full: "w-full",
+    sm: "sm:w-[24rem]",
+    md: "sm:w-[28rem]",
+    lg: "sm:w-[32rem]",
+    xl: "sm:w-[40rem]",
+    full: "sm:w-full",
   },
   bottom: {
     sm: "max-h-[40vh]",
-    md: "max-h-[55vh]",
+    md: "",
     lg: "max-h-[70vh]",
     xl: "max-h-[85vh]",
-    full: "h-[100dvh] max-h-[100dvh] rounded-none",
+    full: "!h-[100dvh] max-h-[100dvh] rounded-none",
   },
 } as const;
 
@@ -75,57 +88,65 @@ export function MyDrawer({
 }: MyDrawerProps) {
   const titleId = useId();
   const descriptionId = useId();
-
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeOnEscapeRef = useRef(closeOnEscape);
+  // El ref se sincroniza en un efecto (no durante el render, regla
+  // react-hooks/refs): el listener de `cancel` lo lee en el momento del evento.
   useEffect(() => {
-    if (!open || !closeOnEscape) return;
+    closeOnEscapeRef.current = closeOnEscape;
+  }, [closeOnEscape]);
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onOpenChange(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, closeOnEscape, onOpenChange]);
-
+  // El estado controlado (`open`) maneja el dialog nativo; el evento `close`
+  // (Escape o close() programático) sincroniza hacia afuera.
   useEffect(() => {
-    if (!open) return;
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
   }, [open]);
 
-  if (!open) return null;
+  // Escape: el dialog nativo lo interpreta siempre; se cancela el evento
+  // `cancel` si el consumidor pidió closeOnEscape=false. El listener se
+  // registra una sola vez y lee el ref, así no se resuscribe al re-renderizar
+  // el padre (regla prefer-use-effect-event de react-doctor).
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleCancel = (event: Event) => {
+      if (!closeOnEscapeRef.current) event.preventDefault();
+    };
+    dialog.addEventListener("cancel", handleCancel);
+    return () => dialog.removeEventListener("cancel", handleCancel);
+  }, []);
 
   return (
-    <div className={cn("fixed inset-0 z-50", className)}>
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={title ? titleId : undefined}
+      aria-describedby={description ? descriptionId : undefined}
+      data-state={open ? "open" : "closed"}
+      onClose={() => onOpenChange(false)}
+      className={cn(dialogBase, className)}
+    >
+      {/* Overlay: botón real que cubre el viewport y captura el clic fuera del
+          panel (regla no-noninteractive-element-interactions: sin manejadores
+          sobre elementos no interactivos). */}
       <button
         type="button"
-        aria-label="Cerrar drawer"
-        onClick={() => closeOnOverlayClick && onOpenChange(false)}
+        aria-label="Cerrar panel"
+        tabIndex={closeOnOverlayClick ? 0 : -1}
+        onClick={() => onOpenChange(false)}
         className={cn(
-          "absolute inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity",
+          "absolute inset-0 h-full w-full",
+          !closeOnOverlayClick && "pointer-events-none",
           overlayClassName,
-          !closeOnOverlayClick && "cursor-default",
         )}
       />
-
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
-        aria-describedby={description ? descriptionId : undefined}
-        data-state={open ? "open" : "closed"}
         className={cn(
-          "absolute flex flex-col overflow-hidden border-(--border-primary) bg-(--bg-surface) text-(--text-primary) shadow-2xl transition-transform duration-300 ease-out",
-          sideClasses[side],
+          "z-10 flex flex-col overflow-hidden bg-(--bg-surface) text-(--text-primary) shadow-2xl border-(--border-primary)",
+          panelClasses[side],
           sizeClasses[side][size],
-          side !== "bottom" && "h-full",
           contentClassName,
         )}
       >
@@ -159,6 +180,7 @@ export function MyDrawer({
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
+                aria-label="Cerrar panel"
                 className={cn(
                   "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-(--border-primary)",
                   "bg-(--bg-secondary) text-(--text-secondary) transition-colors",
@@ -187,7 +209,7 @@ export function MyDrawer({
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   );
 }
 

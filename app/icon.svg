@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#8c2f3a"/>
+  <!-- S-14p: misma línea continua limpia que el logo (arco + V en un trazo) -->
+  <path d="M14 32a18 18 0 0 1 36 0L32 52Z" fill="none" stroke="#f1ece3" stroke-width="4.5" stroke-linejoin="round"/>
+  <circle cx="32" cy="31.5" r="4.5" fill="#f1ece3"/>
+</svg>

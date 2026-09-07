@@ -60,14 +60,16 @@ export const MyDatePicker = React.forwardRef<HTMLButtonElement, MyDatePickerProp
       return matchers.length > 0 ? matchers : undefined;
     }, [min, max]);
 
+    // S-09 (react-doctor no-locale-format-in-render): se quitó
+    // toLocaleDateString del render. La fecha viene siempre de un string
+    // "YYYY-MM-DD", así que se formatea armando la cadena directamente:
+    // idéntica en servidor y navegador, cero riesgo de hidratación.
     const formattedDate = React.useMemo(() => {
-      if (!selectedDate) return null;
-      return selectedDate.toLocaleDateString("es-ES", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-    }, [selectedDate]);
+      if (!value) return null;
+      const [year, month, day] = value.split("-");
+      if (!year || !month || !day) return null;
+      return `${day}/${month}/${year}`;
+    }, [value]);
 
     return (
       <div className="space-y-1">

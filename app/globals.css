@@ -142,18 +142,32 @@ main {
     }
 }
 
+/* S-12b (punto medio pedido por el usuario): dos velocidades tipográficas.
+   La serif editorial (Fraunces) queda SOLO para los momentos grandes —h1/h2
+   de hero, páginas y detalle— y baja de 700 a 600 para no verse pesante.
+   De h3 hacia abajo (títulos de ProductCard, secciones pequeñas, modales)
+   manda DM Sans 600: legible y ligero en tamaños chicos, que es donde la
+   serif cansaba la vista. */
 h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+h2 {
     font-family: var(--font-display);
-    font-weight: 700;
+    font-weight: 600;
     margin: 0 0 0.5rem 0;
     color: var(--text-primary);
     line-height: 1.2;
     letter-spacing: -0.02em;
+}
+
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
 }
 
 h1 {
@@ -417,29 +431,65 @@ hr {
     height: 8px;
 }
 
+/* S-14i: barra de scroll de marca — fina, flotante (padding transparente
+   alrededor del pulgar), degradado crema a burdeos según el tramo recorrido
+   y resplandor suave al interactuar. */
+::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+}
+
 ::-webkit-scrollbar-track {
-    background: var(--bg-surface);
-    border-radius: 4px;
+    background: transparent;
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cfc7b9;
-    border-radius: 4px;
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--accent-primary) 55%, var(--bg-secondary)),
+            var(--accent-primary)
+        )
+        padding-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
     cursor: pointer;
+    transition: background-color 200ms ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #b3a996;
-    box-shadow: 0 0 6px rgba(179, 169, 150, 0.4);
+    background:
+        linear-gradient(
+            180deg,
+            var(--accent-primary),
+            color-mix(in srgb, var(--accent-primary) 75%, black)
+        )
+        padding-box;
+    box-shadow: 0 0 8px rgb(var(--accent-primary-rgb), 0.35);
 }
 
 ::-webkit-scrollbar-thumb:active {
-    background: #a49a88;
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--accent-primary) 80%, black),
+            var(--accent-hover)
+        )
+        padding-box;
 }
 
-/* Para Firefox */
+/* Para Firefox (degradados no soportados: color plano de marca) */
 * {
-    scrollbar-color: #cfc7b9 var(--bg-surface);
+    scrollbar-color: color-mix(
+            in srgb,
+            var(--accent-primary) 55%,
+            var(--bg-secondary)
+        )
+        transparent;
     scrollbar-width: thin;
 }
 
@@ -580,6 +630,29 @@ input::-webkit-scrollbar-thumb:hover {
     background-size: 200% 100%;
 }
 
+/* S-01.5 (factor wow): shimmer de barrido real sobre el skeleton — la banda
+   clara viaja de izquierda a derecha (background-position es barato en
+   elementos pequeños de carga; reduced-motion lo neutraliza globalmente). */
+.skeleton-shimmer {
+    animation: skeleton-shimmer 1.4s linear infinite;
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary) 0%,
+        var(--bg-surface) 50%,
+        var(--bg-secondary) 100%
+    );
+    background-size: 200% 100%;
+}
+
+@keyframes skeleton-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+
 /* Offline indicator */
 .offline-indicator {
     position: fixed;
@@ -625,6 +698,105 @@ input::-webkit-scrollbar-thumb:hover {
 .glass-panel:hover {
     border-color: rgba(var(--accent-primary-rgb), 0.2) !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   S-10 (accesibilidad): anillo de foco visible uniforme. Los componentes
+   usan focus:outline-none; esto garantiza que TODO elemento interactivo
+   revele su foco por teclado (WCAG 2.4.7) sin tocar el ratón.
+   ============================================ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+/* S-10: respeto global por prefers-reduced-motion — mata animaciones y
+   transiciones (el autoplay del carrusel además se pausa en JS). */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* S-01.5 (factor wow): bloque de revelado al scroll. El JS (components/ui/
+   Reveal.tsx) solo añade `.revealed`; con reduced-motion nace revelado.
+   Solo transform/opacity para mantenerlo en el hilo de composición. */
+.reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.reveal.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* S-11 (sistema de diseño): checkbox de marca, nativo pero vestido. Sigue
+   siendo <input type="checkbox"> (gratis para GET/teclado/lectores — lección
+   de S-10); appearance-none nos deja pintar el check con el SVG de datos. */
+.my-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 1.05rem;
+    width: 1.05rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: 1px solid var(--border-secondary);
+    border-radius: 0.3rem;
+    background: var(--bg-surface);
+    display: inline-grid;
+    place-content: center;
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.my-checkbox:hover {
+    border-color: var(--accent-primary);
+}
+
+.my-checkbox:checked {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.my-checkbox:checked::before {
+    content: "";
+    width: 0.6rem;
+    height: 0.6rem;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    background: #fff;
+}
+
+/* Variante radio del control de marca (MyCheckbox type="radio"): círculo con
+   punto interior, mismo token de acento. */
+.my-checkbox.my-radio {
+    border-radius: 9999px;
+}
+
+.my-checkbox.my-radio:checked::before {
+    clip-path: none;
+    border-radius: 9999px;
+    width: 0.45rem;
+    height: 0.45rem;
+    background: #fff;
+}
+
+.my-checkbox:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.my-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ============================================

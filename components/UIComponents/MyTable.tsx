@@ -68,6 +68,131 @@ interface MyTableProps<T extends { id: string | number }> {
   onSortChange?: (field: string, direction: 'asc' | 'desc') => void;
 }
 
+type TableVariant = NonNullable<MyTableProps<{ id: string }>['variant']>;
+
+// S-09 (react-doctor no-high-complexity-react-function): los ternarios de
+// variante estaban incrustados en el JSX y disparaban la complejidad del
+// componente. Ahora cada superficie tiene su mapa de clases en un solo lugar.
+const wrapperClasses: Record<TableVariant, string> = {
+  excel: 'rounded-none border-2 border-(--border-primary) shadow-none',
+  default:
+    'rounded-lg md:rounded-xl bg-(--bg-surface) shadow-md border border-(--border-primary) hover:shadow-lg transition-shadow duration-300',
+};
+
+const headRowClasses: Record<TableVariant, string> = {
+  excel: 'bg-(--bg-secondary) border-b-2 border-(--border-primary) h-10',
+  default:
+    'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) border-b-2 border-(--accent-primary) h-14',
+};
+
+const headCellClasses: Record<TableVariant, string> = {
+  excel:
+    'px-2 md:px-4 py-2 text-(--text-secondary) font-bold border-r border-(--border-primary) last:border-r-0 sticky top-0 bg-(--bg-secondary) z-20 shadow-[0_1px_0_var(--border-primary)]',
+  default:
+    'px-3 md:px-6 py-2 md:py-4 text-(--text-inverted) bg-transparent border-none whitespace-nowrap',
+};
+
+function bodyRowClasses(variant: TableVariant, index: number): string {
+  if (variant === 'excel') {
+    return 'border-b border-(--border-primary) hover:bg-(--border-light)';
+  }
+  const stripe = index % 2 === 0 ? 'bg-(--bg-surface)' : 'bg-[rgba(212,175,55,0.03)]';
+  return `border-b border-(--border-primary) transition-transform duration-200 cursor-pointer group ${stripe} hover:bg-[rgba(var(--accent-primary-rgb),0.08)] hover:translate-x-1 hover:shadow-[inset_3px_0_0_0_var(--accent-primary)]`;
+}
+
+const bodyCellClasses: Record<TableVariant, string> = {
+  excel:
+    'px-2 md:px-4 py-2 text-(--text-primary) text-xs md:text-sm border-r border-(--border-primary) last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis font-mono',
+  default:
+    'px-3 md:px-6 py-2 md:py-4 text-(--text-primary) text-xs md:text-sm border-none whitespace-nowrap overflow-hidden text-ellipsis group-odd:text-(--text-secondary)',
+};
+
+// S-09: la paginación se extrae como componente propio (antes sumaba sus
+// ramas de control a la complejidad de MyTable).
+interface TablePaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+function generatePageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+  const maxVisible = 5;
+  if (totalPages <= maxVisible) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const pages: (number | string)[] = [];
+  const seen = new Set<number | string>();
+
+  const push = (page: number | string) => {
+    if (!seen.has(page)) {
+      pages.push(page);
+      seen.add(page);
+    }
+  };
+
+  push(1);
+  if (currentPage > 3) push('...');
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) push(i);
+  if (currentPage < totalPages - 2) push('...');
+  push(totalPages);
+
+  return pages;
+}
+
+const navButtonBase = 'p-1.5 md:p-2 rounded-lg transition-transform duration-300';
+const navButtonDisabled = 'bg-(--border-primary) text-(--text-tertiary) cursor-not-allowed opacity-50';
+const navButtonEnabled =
+  'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) text-(--text-inverted) hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md';
+
+function TablePagination({ currentPage, totalPages, onPageChange }: TablePaginationProps) {
+  const hasPrevious = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+
+  return (
+    <div className="flex items-center justify-center gap-1 md:gap-2 flex-wrap py-2 px-2 md:px-0">
+      <button
+        onClick={() => hasPrevious && onPageChange(currentPage - 1)}
+        disabled={!hasPrevious}
+        aria-label="Previous page"
+        className={`${navButtonBase} ${hasPrevious ? navButtonEnabled : navButtonDisabled}`}
+      >
+        <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+      </button>
+
+      <div className="flex items-center gap-1 md:gap-2">
+        {generatePageNumbers(currentPage, totalPages).map((page, index) =>
+          page === '...' ? (
+            <span key={`ellipsis-${index}`} className="px-1 md:px-2 text-(--text-secondary) text-xs md:text-base">...</span>
+          ) : (
+            <button
+              key={page}
+              onClick={() => onPageChange(page as number)}
+              className={`w-7 h-7 md:w-10 md:h-10 rounded-lg font-semibold text-xs md:text-sm transition-transform duration-300 ${currentPage === page
+                  ? 'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) text-(--text-inverted) shadow-lg scale-105'
+                  : 'bg-(--border-primary) text-(--text-secondary) hover:bg-(--border-secondary) hover:-translate-y-0.5'
+                }`}
+            >
+              {page}
+            </button>
+          )
+        )}
+      </div>
+
+      <button
+        onClick={() => hasNext && onPageChange(currentPage + 1)}
+        disabled={!hasNext}
+        aria-label="Next page"
+        className={`${navButtonBase} ${hasNext ? navButtonEnabled : navButtonDisabled}`}
+      >
+        <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+      </button>
+    </div>
+  );
+}
+
 export const MyTable = <T extends { id: string | number }>({
   data,
   columns,
@@ -114,76 +239,16 @@ export const MyTable = <T extends { id: string | number }>({
 
   const displayData = isExternallyControlled ? data : sortedData;
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      onPageChange(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      onPageChange(currentPage + 1);
-    }
-  };
-
-  const generatePageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const pagesSet = new Set<number | string>();
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    pages.push(1);
-    pagesSet.add(1);
-
-    if (currentPage > 3) {
-      pages.push('...');
-      pagesSet.add('...');
-    }
-
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(totalPages - 1, currentPage + 1);
-
-    for (let i = start; i <= end; i++) {
-      if (!pagesSet.has(i)) {
-        pages.push(i);
-        pagesSet.add(i);
-      }
-    }
-
-    if (currentPage < totalPages - 2) {
-      pages.push('...');
-    }
-
-    pages.push(totalPages);
-
-    return pages;
-  };
-
   return (
     <div className="w-full h-full flex flex-col gap-3 md:gap-6 flex-1 overflow-hidden">
       {/* Table Wrapper */}
-      <div className={`w-full overflow-hidden flex-1 flex flex-col ${variant === 'excel'
-          ? 'rounded-none border-2 border-(--border-primary) shadow-none'
-          : 'rounded-lg md:rounded-xl bg-(--bg-surface) shadow-md border border-(--border-primary) hover:shadow-lg transition-shadow duration-300'
-        }`}>
-        <div className={variant === 'excel' ? "flex-1 overflow-x-auto overflow-y-auto custom-scrollbar" : "flex-1 overflow-x-auto overflow-y-auto custom-scrollbar"}>
-          <table className={`w-full border-collapse min-w-full ${variant === 'excel' ? 'bg-(--bg-surface)' : 'bg-(--bg-surface)'}`}>
-            <thead className={variant === 'excel' ? "sticky top-0 z-10" : ""}>
-              <tr className={`${variant === 'excel'
-                  ? 'bg-(--bg-secondary) border-b-2 border-(--border-primary) h-10'
-                  : 'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) border-b-2 border-(--accent-primary) h-14'
-                }`}>
+      <div className={`w-full overflow-hidden flex-1 flex flex-col ${wrapperClasses[variant]}`}>
+        <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+          <table className={`w-full border-collapse min-w-full bg-(--bg-surface)`}>
+            <thead className={variant === 'excel' ? 'sticky top-0 z-10' : ''}>
+              <tr className={headRowClasses[variant]}>
                 {columns.map(column => (
-                  <th
-                    key={String(column.key)}
-                    className={`${variant === 'excel'
-                        ? 'px-2 md:px-4 py-2 text-(--text-secondary) font-bold border-r border-(--border-primary) last:border-r-0 sticky top-0 bg-(--bg-secondary) z-20 shadow-[0_1px_0_var(--border-primary)]'
-                        : 'px-3 md:px-6 py-2 md:py-4 text-(--text-inverted) bg-transparent border-none whitespace-nowrap'
-                      }`}
-                  >
+                  <th key={String(column.key)} className={headCellClasses[variant]}>
                     <SortableHeader
                       label={column.label}
                       sortKey={column.key}
@@ -201,26 +266,14 @@ export const MyTable = <T extends { id: string | number }>({
                 displayData.map((row, index) => (
                   <tr
                     key={row.id}
-                    className={`${variant === 'excel'
-                        ? 'border-b border-(--border-primary) hover:bg-(--border-light)'
-                        : `border-b border-(--border-primary) transition-transform duration-200 cursor-pointer group ${index % 2 === 0
-                          ? 'bg-(--bg-surface)'
-                          : 'bg-[rgba(212,175,55,0.03)]'
-                        } hover:bg-[rgba(var(--accent-primary-rgb),0.08)] hover:translate-x-1 hover:shadow-[inset_3px_0_0_0_var(--accent-primary)]`
-                      }`}
+                    className={bodyRowClasses(variant, index)}
                     onClick={() => onRowClick?.(row.id)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick?.(row.id); } }}
                   >
                     {columns.map(column => {
                       const value = (row as Record<string, unknown>)[column.key];
                       return (
-                        <td
-                          key={String(column.key)}
-                          className={`${variant === 'excel'
-                              ? 'px-2 md:px-4 py-2 text-(--text-primary) text-xs md:text-sm border-r border-(--border-primary) last:border-r-0 whitespace-nowrap overflow-hidden text-ellipsis font-mono'
-                              : 'px-3 md:px-6 py-2 md:py-4 text-(--text-primary) text-xs md:text-sm border-none whitespace-nowrap overflow-hidden text-ellipsis group-odd:text-(--text-secondary)'
-                            }`}
-                        >
+                        <td key={String(column.key)} className={bodyCellClasses[variant]}>
                           {column.render
                             ? (column.render(value, row) as React.ReactNode)
                             : String(value ?? '')}
@@ -241,55 +294,12 @@ export const MyTable = <T extends { id: string | number }>({
         </div>
       </div>
 
-      {/* Pagination Controls */}
       {showPagination && (
-        <div className="flex items-center justify-center gap-1 md:gap-2 flex-wrap py-2 px-2 md:px-0">
-          {/* Previous Button */}
-          <button
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            aria-label="Previous page"
-            className={`p-1.5 md:p-2 rounded-lg transition-transform duration-300 ${currentPage === 1
-                ? 'bg-(--border-primary) text-(--text-tertiary) cursor-not-allowed opacity-50'
-                : 'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) text-(--text-inverted) hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md'
-              }`}
-          >
-            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
-          </button>
-
-          {/* Page Numbers */}
-          <div className="flex items-center gap-1 md:gap-2">
-            {generatePageNumbers().map((page, index) =>
-              page === '...' ? (
-                <span key={`ellipsis-${index}`} className="px-1 md:px-2 text-(--text-secondary) text-xs md:text-base">...</span>
-              ) : (
-                <button
-                  key={page}
-                  onClick={() => onPageChange(page as number)}
-                  className={`w-7 h-7 md:w-10 md:h-10 rounded-lg font-semibold text-xs md:text-sm transition-transform duration-300 ${currentPage === page
-                      ? 'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) text-(--text-inverted) shadow-lg scale-105'
-                      : 'bg-(--border-primary) text-(--text-secondary) hover:bg-(--border-secondary) hover:-translate-y-0.5'
-                    }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
-          </div>
-
-          {/* Next Button */}
-          <button
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            aria-label="Next page"
-            className={`p-1.5 md:p-2 rounded-lg transition-transform duration-300 ${currentPage === totalPages
-                ? 'bg-(--border-primary) text-(--text-tertiary) cursor-not-allowed opacity-50'
-                : 'bg-linear-to-r from-(--accent-primary) to-(--accent-hover) text-(--text-inverted) hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md'
-              }`}
-          >
-            <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
-          </button>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+        />
       )}
     </div>
   );

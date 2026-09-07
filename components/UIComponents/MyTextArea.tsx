@@ -1,8 +1,17 @@
 "use client";
 import React, { useId } from "react";
 import { cn } from "@/lib/utils";
+import {
+  FIELD_CONTROL_BASE,
+  FIELD_CONTROL_ERROR,
+  FIELD_ERROR_TEXT,
+  FIELD_LABEL,
+} from "./field-styles";
 
-interface MyTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+// S-11 (sistema de diseño): área de texto sobre field-styles.ts.
+
+interface MyTextAreaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
   labelEnd?: React.ReactNode;
@@ -14,10 +23,10 @@ export const MyTextArea = React.forwardRef<HTMLTextAreaElement, MyTextAreaProps>
     const textareaId = id || autoId;
 
     return (
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1.5">
         {label && (
-          <label htmlFor={textareaId} className="flex items-center gap-1 text-sm font-medium text-(--text-primary)">
-            {label}
+          <label htmlFor={textareaId} className={FIELD_LABEL}>
+            <span>{label}</span>
             {labelEnd}
           </label>
         )}
@@ -25,22 +34,23 @@ export const MyTextArea = React.forwardRef<HTMLTextAreaElement, MyTextAreaProps>
           ref={ref}
           id={textareaId}
           autoComplete="off"
+          aria-invalid={error ? true : undefined}
           className={cn(
-            "w-full px-3 py-2 rounded-lg border text-sm resize-none",
-            "bg-(--bg-surface) text-(--text-primary) placeholder:text-(--text-secondary)",
-            "border-(--border-primary) focus:border-(--accent-primary) focus:ring-2 focus:ring-(--accent-primary)/30",
-            "outline-none transition-colors duration-200",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-500/30",
-            className
+            FIELD_CONTROL_BASE,
+            "min-h-24 resize-none py-2 leading-relaxed",
+            error && FIELD_CONTROL_ERROR,
+            className,
           )}
           {...props}
         />
         {error && (
-          <p className="text-xs text-red-500">{error}</p>
+          <p className={FIELD_ERROR_TEXT} role="alert">
+            {error}
+          </p>
         )}
       </div>
     );
-  }
+  },
 );
 
 MyTextArea.displayName = "MyTextArea";

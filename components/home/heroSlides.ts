@@ -41,32 +41,37 @@ export interface HeroSlide {
  * permitido en `remotePatterns`). Sustituir por imágenes reales de hero
  * cuando estén disponibles.
  */
+/**
+ * Placeholders: ilustraciones del propio catálogo demo, alojadas en el CDN de
+ * la tienda (dominio ya permitido en `remotePatterns`). Composición vertical
+ * 1200x1500 — el carrusel las recorta con `object-cover`.
+ */
 export const heroSlides: HeroSlide[] = [
   {
-    eyebrow: "Nueva temporada",
-    titleLines: ["La montaña", "empieza aquí."],
+    eyebrow: "Taller de barro",
+    titleLines: ["Hecho a mano,", "pieza sobre pieza."],
     description:
-      "Tablas y equipo seleccionado para quienes suben por el placer de bajar.",
+      "Cerámica de torno y pasta, vidriada en pequeños lotes para la mesa diaria.",
     image:
-      "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/Main.jpg?v=1787793614",
-    href: "/products",
+      "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/vit-hero-ceramica.jpg?v=1788752337",
+    href: "/products?collection=ceramica",
   },
   {
-    eyebrow: "Colección altura",
-    titleLines: ["Diseñado para", "la nieve polvo."],
+    eyebrow: "Luz cálida",
+    titleLines: ["La casa se enciende", "de a poco."],
     description:
-      "Perfiles anchos, flotación real y geometría pensada para días largos fuera de pista.",
+      "Lámparas y difusores que filtran la tarde antes de que caiga el sol.",
     image:
-      "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/Main_589fc064-24a2-4236-9eaf-13b2bd35d21d.jpg?v=1787793614",
-    href: "/products",
+      "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/vit-hero-luz.jpg?v=1788752345",
+    href: "/products?collection=iluminacion",
   },
   {
-    eyebrow: "Equipo completo",
-    titleLines: ["Botas, fijaciones", "y capas base."],
+    eyebrow: "Hilo y telar",
+    titleLines: ["Textiles que", "abrigan el piso."],
     description:
-      "Todo lo que cierra el círculo entre el primer remontaje y la última bajada del día.",
+      "Mantas, cojines y alfombras tejidos con lana de origen trazable.",
     image:
-      "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/snowboard_purple_hydrogen.jpg?v=1787793614",
-    href: "/collections",
+      "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/vit-hero-textil.jpg?v=1788752341",
+    href: "/products?collection=textil",
   },
 ];

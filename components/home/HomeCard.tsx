@@ -14,13 +14,15 @@ interface HomeCardProps {
   className?: string;
 }
 
-// Por debajo de md: 2.1 fichas visibles en móvil y 2.5 en sm (pista con
-// scroll). De md hacia arriba la pista pasa a grilla de 5 columnas iguales,
-// así que `md:w-auto` anula los calc y el ancho lo reparte la grilla.
+// S-14c: una sola fila de quince fichas en TODOS los tamaños — la pista es
+// siempre carrusel horizontal; las flechas mueven una ficha por clic. El
+// ancho fijo por breakpoint hace que todas las tarjetas midan exactamente lo
+// mismo. S-14f: máximo 5 visibles por vez en escritorio (antes 7.5) — fichas
+// más grandes y legibles, el resto sigue rodando con las flechas.
 const ITEM_WIDTH = [
-  "w-[calc(47%-0.4rem)]",
-  "sm:w-[calc(40%-0.45rem)]",
-  "md:w-auto",
+  "w-[calc((100%-0.8rem)/2.2)]",
+  "sm:w-[calc((100%-2rem)/4.5)]",
+  "md:w-[calc((100%-3rem)/5)]",
 ].join(" ");
 
 // Flechas circulares: como la tarjeta madre ya no tiene superficie propia,
@@ -30,11 +32,15 @@ const CARD_ARROW_CLASS = [
   "absolute top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full",
   "border border-(--border-secondary) bg-(--bg-surface)/90 text-(--text-primary)",
   "shadow-md backdrop-blur-sm",
-  "transition-all duration-300",
+  // S-01.5 (react-doctor no-transition-all): solo animan lo que cambian.
+  "transition-[transform,border-color,background-color,color,opacity,box-shadow] duration-300",
   "hover:scale-110 hover:border-(--accent-primary)/50 hover:bg-(--bg-surface) hover:text-(--accent-primary)",
   "active:scale-95",
   // En los extremos la flecha desaparece en vez de quedar "apagada".
-  "disabled:opacity-0 disabled:shadow-none",
+  "disabled:!opacity-0 disabled:shadow-none",
+  // S-14i: opacas por defecto; aparecen al pasar el ratón por el carrusel
+  // (o al recibir foco de teclado, para no romper accesibilidad).
+  "opacity-0 group-hover/carousel:opacity-100 group-focus-within/carousel:opacity-100",
 ].join(" ");
 
 /**
@@ -124,14 +130,20 @@ export default function HomeCard({
   return (
     <section
       aria-label="Productos destacados"
-      className={cn("relative mx-auto w-full max-w-5xl animate-fade-up", className)}
+      // S-14d: el carrusel usa casi todo el ancho de la página (antes topaba
+      // en max-w-5xl y dejaba columnas muertas a los lados). S-14g: pedido
+      // del usuario — 70% del viewport, centrado, ya no full-bleed.
+      className={cn(
+        "group/carousel relative mx-auto w-[70vw] max-w-[70vw] animate-fade-up",
+        className,
+      )}
     >
       <div className="relative">
         <div
           ref={trackRef}
           tabIndex={0}
           aria-label="Productos destacados: usa las flechas o desliza para ver más"
-          className="hide-scrollbar flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 outline-none focus-visible:ring-2 focus-visible:ring-(--accent-primary)/30 md:grid md:grid-cols-5 md:overflow-x-visible md:snap-none"
+          className="hide-scrollbar flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 outline-none focus-visible:ring-2 focus-visible:ring-(--accent-primary)/30"
         >
           {items.map((product, index) => (
             <div

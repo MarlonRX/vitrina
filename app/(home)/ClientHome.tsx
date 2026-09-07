@@ -15,8 +15,10 @@ export default function ClientHome({
   products,
   hasActiveFilters,
 }: ClientHomeProps) {
+  // S-10 (accesibilidad): el `<main>` da destino al atajo "saltar al
+  // contenido" de los lectores de pantalla (las demás rutas ya lo tenían).
   return (
-    <div className="flex flex-col gap-10">
+    <main className="flex flex-col gap-10">
       {!hasActiveFilters && <HeroCarousel slides={heroSlides} />}
 
       {hasActiveFilters ? (
@@ -45,9 +47,10 @@ export default function ClientHome({
            (z-10) del hero. */
         <HomeCard
           products={products}
-          className="z-10 -mt-20 md:-mt-56"
+          maxItems={15}
+          className="z-10 -mt-28 md:-mt-64"
         />
       )}
-    </div>
+    </main>
   );
 }

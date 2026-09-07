@@ -22,7 +22,9 @@ const ARROW_BUTTON_CLASS = [
   "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 rounded-full md:inline-flex",
   "border border-(--bg-primary)/30 bg-black/25 text-(--bg-primary)",
   "shadow-lg backdrop-blur-md",
-  "transition-all duration-300",
+  // S-09 (react-doctor no-transition-all): en vez de animar todas las
+  // propiedades, solo las que realmente cambian en hover/active.
+  "transition-[transform,background-color,border-color,box-shadow] duration-300",
   "hover:scale-110 hover:border-(--bg-primary)/70 hover:bg-black/45 hover:text-(--bg-primary)",
   "hover:shadow-xl hover:shadow-black/40",
   "focus-visible:ring-(--bg-primary)/60",
@@ -46,6 +48,9 @@ const ARROW_BUTTON_CLASS = [
  * el mismo sentido; al aterrizar sobre un clon se espera a que termine la
  * transición y se salta SIN animación a la diapositiva verdadera equivalente,
  * cuyo fotograma es idéntico al del clon. Así nunca se ve un rebobinado.
+ *
+ * S-09 (LCP): el contenedor ya no usa `animate-fade-up` — el keyframe arranca
+ * en opacidad 0 sobre la imagen del LCP y retrasa su paint.
  */
 export default function HeroCarousel({
   slides = heroSlides,
@@ -65,6 +70,34 @@ export default function HeroCarousel({
   // Controla que las flechas solo existan en el DOM con el mouse encima.
   const [hovered, setHovered] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // S-01.5 (factor wow): parallax sutil del fondo del hero. No usa estado de
+  // React (cero re-renders por scroll): escribe `--hero-shift` directo en el
+  // nodo, y las imágenes lo consumen vía `translate` (propiedad independiente
+  // de `scale`, que sigue con el hover). Se desactiva con reduced-motion y
+  // queda cubierto por el CSS global de S-10.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    function onScroll() {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = sectionRef.current;
+        if (!el) return;
+        // Avanza hasta -26px a lo largo de los primeros ~220px de scroll.
+        const shift = -Math.min(window.scrollY, 220) * 0.12;
+        el.style.setProperty("--hero-shift", `${shift.toFixed(1)}px`);
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Índice acotado a la pista: si `slides` cambiara de longitud entre renders,
   // evita posicionar fuera de rango (pantalla en blanco).
@@ -141,9 +174,10 @@ export default function HeroCarousel({
 
   return (
     <section
+      ref={sectionRef}
       aria-roledescription="carrusel"
       aria-label="Destacados de la temporada"
-      className="group relative -mt-30 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] animate-fade-up overflow-hidden"
+      className="group relative -mt-30 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] overflow-hidden"
       onMouseEnter={() => {
         setHovered(true);
         setPaused(true);
@@ -163,10 +197,13 @@ export default function HeroCarousel({
           es la de la más alta y no salta al cambiar. */}
       <div
         ref={trackRef}
-        className="flex will-change-transform"
+        className="flex"
         style={{
           transform: `translateX(-${display * 100}%)`,
           transition: animate ? TRANSITION : "none",
+          // S-09 (react-doctor no-permanent-will-change): la pista GPU solo se
+          // reserva mientras hay una transición en vuelo; en reposo se libera.
+          willChange: animate ? "transform" : "auto",
         }}
       >
         {track.map((slide, position) => {
@@ -180,10 +217,16 @@ export default function HeroCarousel({
               key={`${position}-${slide.eyebrow}`}
               role="group"
               aria-roledescription="diapositiva"
-              aria-label={`Diapositiva ${activeSlide + 1} de ${count}`}
+              // S-10: el rótulo de cada diapositiva usa su propia posición, no
+              // la activa (antes todas decían "Diapositiva N" con N común).
+              aria-label={`Diapositiva ${
+                hasLoop && position > 0 && position <= count
+                  ? position
+                  : activeSlide + 1
+              } de ${count}`}
               aria-hidden={!isActive}
               inert={!isActive}
-              className="group/slide relative flex min-h-[60vh] basis-full shrink-0 flex-col justify-center overflow-hidden bg-(--accent-hover) px-8 py-20 md:min-h-[65vh] md:px-[calc(10vw+1rem)]"
+              className="group/slide relative flex min-h-[70vh] basis-full shrink-0 flex-col justify-center overflow-hidden bg-(--accent-hover) px-8 py-20 md:min-h-[82vh] md:px-[calc(6vw+1rem)]"
             >
               <Image
                 src={slide.image}
@@ -192,7 +235,12 @@ export default function HeroCarousel({
                 sizes="100vw"
                 loading={position === offset ? "eager" : "lazy"}
                 fetchPriority={position === offset ? "high" : "auto"}
-                className="object-cover duration-900 ease-out transition-transform group-hover/slide:scale-[1.03]"
+                // S-01.5: `translate` (propiedad CSS separada de `transform`)
+                // lleva el parallax y no interfiere con el `scale` del hover.
+                // Se extiende 40px por debajo (`!h`) para que el desplazamiento
+                // hacia arriba (máx. ~26px) nunca deje borde descubierto;
+                // `overflow-hidden` de la diapositiva recorta el sobrante.
+                className="object-cover !h-[calc(100%+40px)] duration-900 ease-out translate-y-[var(--hero-shift,0px)] transition-transform group-hover/slide:scale-[1.03]"
               />
               {/* Scrim lateral para que el texto se lea sobre cualquier foto. */}
               <div
@@ -205,19 +253,32 @@ export default function HeroCarousel({
                 aria-label={`${slide.titleLines.join(" ")} — abrir`}
                 className="absolute inset-0 z-2 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-(--bg-primary)"
               />
-              <div className="pointer-events-none relative z-3 flex max-w-2xl flex-col gap-5">
-                <span className="text-xs font-semibold uppercase tracking-[0.35em] text-(--bg-primary)/70">
+              <div className="pointer-events-none relative z-3 flex max-w-4xl flex-col gap-5">
+                <span className="text-sm font-semibold uppercase tracking-[0.35em] text-(--bg-primary)/70 md:text-base">
                   {slide.eyebrow}
                 </span>
-                <Heading className="text-4xl font-bold leading-[1.05] text-(--bg-primary) md:text-6xl">
+                {/* S-12b: en display grande, el peso 600 global se ve liviano;
+                    el hero recupera 700 solo a este tamaño. S-14d: escalada
+                    a 7xl — el lienzo de 65vh pedía más presencia. */}
+                <Heading className="text-5xl font-bold leading-[1.02] text-(--bg-primary) md:text-7xl">
                   {slide.titleLines.map((line, lineIndex) => (
                     <span key={`${lineIndex}-${line}`}>
                       {lineIndex > 0 && <br />}
-                      <span className="text-(--bg-primary)">{line}</span>
+                      {/* S-12: el "momento tipográfico" — la última línea en
+                          cursiva Fraunces con tinte crema, firma editorial. */}
+                      <span
+                        className={
+                          lineIndex === slide.titleLines.length - 1
+                            ? "italic text-(--accent-secondary)"
+                            : "text-(--bg-primary)"
+                        }
+                      >
+                        {line}
+                      </span>
                     </span>
                   ))}
                 </Heading>
-                <p className="max-w-md text-sm leading-relaxed text-(--bg-primary)/80 md:text-base">
+                <p className="max-w-2xl text-base leading-relaxed text-(--bg-primary)/80 md:text-xl">
                   {slide.description}
                 </p>
               </div>
@@ -258,30 +319,36 @@ export default function HeroCarousel({
       )}
 
       {hasLoop && (
-        /* Contador de puntos: centrado abajo, un punto por diapositiva real.
-           Se alza sobre el degradado para mantener contraste. `HomeCard`
-           solapa el borde inferior del hero (-mt-20 md:-mt-26 sobre el
-           contenedor), así que los puntos se suben lo suficiente para que la
-           tarjeta nunca los tape. */
-        <div
+        /* S-14j: el indicador vuelve a ser HORIZONTAL y se planta justo
+           encima del carrusel de ítems: HomeCard solapa el hero 5rem en móvil
+           y 14rem en md (ClientHome), así que el bottom suma ese solape más
+           un respiro. Pastilla de cristal centrada; la diapositiva activa es
+           una barra burdeos que se estira con resplandor, el resto puntos
+           crema que se encienden al hover. */
+        /* S-10: <nav> real con su nombre accesible. */
+        <nav
           aria-label="Ir a una diapositiva"
-          className="absolute bottom-14 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 md:bottom-20"
+          className="absolute bottom-[7.75rem] left-1/2 z-30 -translate-x-1/2 md:bottom-[16.75rem]"
         >
-          {slides.map((slide, slideIndex) => (
-            <button
-              key={`${slideIndex}-${slide.eyebrow}`}
-              type="button"
-              onClick={() => goToSlide(slideIndex)}
-              aria-label={`Ir a la diapositiva ${slideIndex + 1} de ${count}`}
-              aria-current={slideIndex === activeSlide}
-              className={
-                slideIndex === activeSlide
-                  ? "h-2 w-8 bg-(--bg-primary) transition-all"
-                  : "h-2 w-2 bg-(--bg-primary)/40 transition-all hover:bg-(--bg-primary)/70"
-              }
-            />
-          ))}
-        </div>
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-(--bg-primary)/15 bg-black/25 px-3.5 py-2.5 shadow-lg backdrop-blur-md">
+            {slides.map((slide, slideIndex) => (
+              <button
+                key={`${slideIndex}-${slide.eyebrow}`}
+                type="button"
+                onClick={() => goToSlide(slideIndex)}
+                aria-label={`Ir a la diapositiva ${slideIndex + 1} de ${count}`}
+                aria-current={slideIndex === activeSlide}
+                className={
+                  // S-09 (react-doctor no-transition-all): solo animan lo
+                  // que cambian: largo, fondo y sombra.
+                  slideIndex === activeSlide
+                    ? "h-2 w-10 rounded-full bg-(--accent-primary) shadow-[0_0_12px_rgb(var(--accent-primary-rgb),0.7)] transition-[width,background-color]"
+                    : "h-2 w-2 rounded-full bg-(--bg-primary)/50 transition-[width,background-color] hover:w-5 hover:bg-(--bg-primary)/90"
+                }
+              />
+            ))}
+          </div>
+        </nav>
       )}
     </section>
   );

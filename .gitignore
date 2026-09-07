@@ -41,3 +41,17 @@ server.err
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ── trabajo local: agentes, specs y utilidades (no se sube) ──
+/specs/
+/AGENTS.md
+/CLAUDE.md
+/.claude/
+/.cursor/
+/.aider*
+/scripts/__pycache__/
+
+# ── assets regenerables (ver README de scripts/) ──
+/public/presets/
+/public/aprobacion/
+

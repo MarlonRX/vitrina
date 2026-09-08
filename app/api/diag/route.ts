@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const steps: Record<string, string> = {};
   try {
+    steps["0-node"] = process.version;
     steps["1-módulo-sanitize"] = "importando…";
     const { sanitizeProductHtml } = await import("@/lib/sanitize");
     steps["1-módulo-sanitize"] = "ok";

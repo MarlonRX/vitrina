@@ -2,6 +2,10 @@
   "name": "vitrina",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "//": "Fix 500 en Vercel: el runtime por defecto (Node 20.x viejo) lanza ERR_REQUIRE_ESM con jsdom. require(esm) existe desde Node 22.12. Vercel respeta engines cuando 'Use Engine controls' está activo (default).",
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

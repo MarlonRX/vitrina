@@ -11,8 +11,8 @@ import sanitizeHtml from "sanitize-html";
 // Node 22 y serverExternalPackages, y las fichas de producto (únicas rutas
 // que importan este módulo) devolvían 500 SOLO en el deploy. sanitize-html
 // es CommonJS puro, sin nativos ni lazy-requires: mismo trabajo, cero
-// fragilidad de bundler. Misma lista blanca/atractiva que antes + safeMode
-// (bloquea style/class inyectados).
+// fragilidad de bundler. Misma lista blanca de etiquetas/atributos que antes
+// (sin style/class/on*, que la lista ya excluye por defecto).
 const ALLOWED_TAGS = [
   "p", "br", "hr", "div", "span",
   "h1", "h2", "h3", "h4", "h5", "h6",
@@ -33,7 +33,8 @@ export function sanitizeProductHtml(html: string): string {
     // Enlaces externos: nunca `target` sin `rel` seguro, y fuera javascript:.
     allowedSchemes: ["http", "https", "mailto"],
     disallowedTagsMode: "discard",
-    // Ni estilos ni clases arbitrarias del store.
-    safeMode: true,
+    // NB: no existe opción `safeMode` en esta versión de sanitize-html; la
+    // lista blanca de atributos (solo los declarados arriba) ya excluye
+    // style/class/on* arbitrarios del store.
   });
 }

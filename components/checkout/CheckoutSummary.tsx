@@ -3,10 +3,20 @@
 import { useState } from "react";
 import MyButton from "@/components/UIComponents/MyButton";
 import StateView from "@/components/StateView";
+import CheckoutDemoReceipt from "@/components/checkout/CheckoutDemoReceipt";
 import { cartCount, cartSubtotal } from "@/lib/cart";
 import { formatMoney } from "@/lib/format";
 import { useHydrated } from "@/lib/hooks";
+import type { CartItem } from "@/interface/cart";
 import { useCartStore } from "@/stores/cart";
+
+// S-16: modo demo → "Finalizar compra" muestra un recibo sintético en lugar
+// de redirigir al checkout de Shopify, que en esta tienda está cerrado con
+// storefront password ("not ready for sales"). Activo POR DEFECTO (la demo
+// pública no puede depender de una variable que vive en el panel de cada
+// deploy): poner NEXT_PUBLIC_DEMO_CHECKOUT=0 para volver al flujo real de
+// S-01 cuando la tienda se publique con plan de pago.
+const DEMO_CHECKOUT = process.env.NEXT_PUBLIC_DEMO_CHECKOUT !== "0";
 
 type CheckoutApiResponse = {
   checkoutUrl: string | null;
@@ -20,6 +30,9 @@ export default function CheckoutSummary() {
   const items = useCartStore((state) => state.items);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // S-16: en modo demo, el "pedido" confirmado se guarda aquí (snapshot del
+  // carrito ANTES de vaciarlo) para que el recibo no dependa del store vivo.
+  const [demoOrder, setDemoOrder] = useState<CartItem[] | null>(null);
 
   if (!hydrated) {
     return <p>Cargando resumen...</p>;
@@ -30,6 +43,15 @@ export default function CheckoutSummary() {
 
   async function handleCheckout() {
     if (empty || loading) return;
+
+    // S-16 (modo demo): no se toca Shopify ni la pasarela. Se congela el
+    // carrito actual y se muestra el recibo sintético de inmediato.
+    if (DEMO_CHECKOUT) {
+      setDemoOrder(items);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -66,32 +88,45 @@ export default function CheckoutSummary() {
 
   return (
     <section className="flex flex-col gap-3 border border-(--border-primary) bg-(--bg-surface) p-4">
-      <h2 className="text-lg">Resumen del pedido</h2>
-      <div className="flex justify-between">
-        <span className="text-(--text-secondary)">
-          {cartCount(items)} artículo{cartCount(items) === 1 ? "" : "s"}
-        </span>
-        <span>{empty ? "—" : formatMoney(subtotal)}</span>
-      </div>
-      <p className="text-sm text-(--text-secondary)">
-        Impuestos y gastos de envío se calculan al finalizar la compra.
-      </p>
-      <MyButton
-        disabled={empty || loading}
-        loading={loading}
-        onClick={handleCheckout}
-        className="w-full"
-      >
-        {loading ? "Preparando checkout..." : "Finalizar compra"}
-      </MyButton>
-      {error ? (
-        <StateView
-          variant="error"
-          title="No pudimos iniciar el checkout"
-          description={error}
-          onRetry={handleCheckout}
-        />
-      ) : null}
+      {demoOrder ? (
+        // S-16: recibo sintético del modo demo (el store se vacía aquí al
+        // aceptar; el snapshot `demoOrder` queda intacto para el recibo).
+        <CheckoutDemoReceipt order={demoOrder} onDone={() => setDemoOrder(null)} />
+      ) : (
+        <>
+          <h2 className="text-lg">Resumen del pedido</h2>
+          <div className="flex justify-between">
+            <span className="text-(--text-secondary)">
+              {cartCount(items)} artículo{cartCount(items) === 1 ? "" : "s"}
+            </span>
+            <span>{empty ? "—" : formatMoney(subtotal)}</span>
+          </div>
+          <p className="text-sm text-(--text-secondary)">
+            Impuestos y gastos de envío se calculan al finalizar la compra.
+          </p>
+          <MyButton
+            disabled={empty || loading}
+            loading={loading}
+            onClick={handleCheckout}
+            className="w-full"
+          >
+            {loading ? "Preparando checkout..." : "Finalizar compra"}
+          </MyButton>
+          {DEMO_CHECKOUT ? (
+            <p className="text-xs text-(--text-tertiary)">
+              Versión de demostración: sin pasarela de pagos.
+            </p>
+          ) : null}
+          {error ? (
+            <StateView
+              variant="error"
+              title="No pudimos iniciar el checkout"
+              description={error}
+              onRetry={handleCheckout}
+            />
+          ) : null}
+        </>
+      )}
     </section>
   );
 }

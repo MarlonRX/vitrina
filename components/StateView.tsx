@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Inbox, PackageX } from "lucide-react";
+import { AlertTriangle, Check, Inbox, PackageX } from "lucide-react";
 import MyButton from "@/components/UIComponents/MyButton";
 import { cn } from "@/lib/utils";
 
 // S-03 dentro de S-02a06: pantalla reutilizable para vacío, error de API y
 // sin stock. Uso obligatorio en /search, catálogo, colecciones, detalle de
 // producto y errores de /api/checkout en el carrito.
-export type StateViewVariant = "empty" | "error" | "out-of-stock";
+export type StateViewVariant =
+  | "empty"
+  | "error"
+  | "out-of-stock"
+  | "success"; // S-16: confirmación de pedido simulado en modo demo
 
 interface StateViewAction {
   label: string;
@@ -37,6 +41,10 @@ const variantStyles: Record<
     icon: "text-(--text-tertiary)",
     border: "border-(--border-primary)",
   },
+  success: {
+    icon: "text-(--semantic-success)",
+    border: "border-(--semantic-success)/40",
+  },
   error: {
     icon: "text-(--semantic-error)",
     border: "border-(--semantic-error)/40",
@@ -50,6 +58,7 @@ const variantStyles: Record<
 function VariantIcon({ variant, className }: { variant: StateViewVariant; className?: string }) {
   if (variant === "error") return <AlertTriangle className={className} aria-hidden />;
   if (variant === "out-of-stock") return <PackageX className={className} aria-hidden />;
+  if (variant === "success") return <Check className={className} aria-hidden />;
   return <Inbox className={className} aria-hidden />;
 }
 

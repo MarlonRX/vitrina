@@ -52,7 +52,7 @@ export default function Toaster() {
       <p
         ref={pillRef}
         data-state="0"
-        className="flex items-center gap-2.5 rounded-full border border-(--accent-primary)/40 bg-(--accent-hover) px-4 py-2.5 text-sm font-medium text-(--text-inverted) shadow-xl transition-all duration-250 data-[state='0']:translate-y-3 data-[state='0']:opacity-0"
+        className="flex max-w-full items-center gap-2 rounded-full border border-(--accent-primary)/40 bg-(--accent-hover) px-4 py-2.5 text-sm font-medium text-(--text-inverted) shadow-xl transition-all duration-250 data-[state='0']:translate-y-3 data-[state='0']:opacity-0"
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-(--text-inverted)/15">
           <Check size={13} aria-hidden />

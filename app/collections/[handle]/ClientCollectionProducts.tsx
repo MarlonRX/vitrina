@@ -94,7 +94,7 @@ export default function ClientCollectionProducts({
         // S-14m: panel de filtros de 220px a 300px (sintaxis simple, ya
         // probada; los paréntesis con comas no generan CSS en Tailwind).
         // `min-w-0` en ambos hijos: nada desborda su columna y mezclarse.
-        <div className="grid gap-8 md:grid-cols-[300px_1fr]">
+        <div className="grid gap-6 md:grid-cols-[300px_1fr] md:gap-8">
           <ProductFiltersForm facets={facets} filters={filters} />
           <div className="flex min-w-0 flex-col gap-6">{grid}</div>
         </div>

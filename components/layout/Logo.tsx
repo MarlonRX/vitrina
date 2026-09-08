@@ -43,9 +43,12 @@ export default function Logo({
   size = "md",
 }: LogoProps) {
   // S-14p: x2 sobre la escala anterior (mark h-5/h-6, text-lg/text-xl) por
-  // pedido del usuario. El alto del navbar (h-20) lo sigue conteniendo.
-  const wordSize = size === "sm" ? "text-3xl" : "text-4xl";
-  const markSize = size === "sm" ? "h-10 w-10" : "h-12 w-12";
+  // pedido del usuario — pensado para el navbar de escritorio. S-14q: en el
+  // navbar móvil (size="sm") esa escala hacía que el logo + palabra
+  // empujaran la hamburguesa y la canasta fuera del viewport; el sm vuelve a
+  // una escala que cabe en ~360px: mark 32px y palabra 24px.
+  const wordSize = size === "sm" ? "text-2xl" : "text-4xl";
+  const markSize = size === "sm" ? "h-8 w-8" : "h-12 w-12";
 
   return (
     <Link

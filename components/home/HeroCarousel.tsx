@@ -168,6 +168,28 @@ export default function HeroCarousel({
     return () => clearInterval(id);
   }, [paused, hasLoop, intervalMs, goNext]);
 
+  // S-14q (responsive): las flechas exigen hover y los puntos son diminutos,
+  // así que en táctil no había forma de navegar. Deslizar la pista con el
+  // dedo (o el puntero) avanza/retrocede una diapositiva.
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const onPointerDown = useCallback((event: React.PointerEvent) => {
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+  }, []);
+  const onPointerUp = useCallback(
+    (event: React.PointerEvent) => {
+      const start = pointerStart.current;
+      pointerStart.current = null;
+      if (!start) return;
+      const dx = event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      // Horizontal claro y suficientemente largo; ignora scroll vertical.
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0) goNext();
+      else goPrev();
+    },
+    [goNext, goPrev],
+  );
+
   if (count === 0) return null;
 
   const track = hasLoop ? [slides[count - 1], ...slides, slides[0]] : slides;
@@ -178,6 +200,8 @@ export default function HeroCarousel({
       aria-roledescription="carrusel"
       aria-label="Destacados de la temporada"
       className="group relative -mt-30 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] overflow-hidden"
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
       onMouseEnter={() => {
         setHovered(true);
         setPaused(true);
@@ -340,10 +364,14 @@ export default function HeroCarousel({
                 aria-current={slideIndex === activeSlide}
                 className={
                   // S-09 (react-doctor no-transition-all): solo animan lo
-                  // que cambian: largo, fondo y sombra.
-                  slideIndex === activeSlide
-                    ? "h-2 w-10 rounded-full bg-(--accent-primary) shadow-[0_0_12px_rgb(var(--accent-primary-rgb),0.7)] transition-[width,background-color]"
-                    : "h-2 w-2 rounded-full bg-(--bg-primary)/50 transition-[width,background-color] hover:w-5 hover:bg-(--bg-primary)/90"
+                  // que cambian: largo, fondo y sombra. S-14q: el área táctil
+                  // se agranda con relleno invisible (la píldora visual sigue
+                  // midiendo h-2; con p-2 -m-2 los hits se juntan justitos al
+                  // gap-2 del contenedor, sin solaparse entre sí).
+                  "touch-manipulation rounded-full p-2 -m-2 " +
+                  (slideIndex === activeSlide
+                    ? "h-2 w-10 bg-(--accent-primary) shadow-[0_0_12px_rgb(var(--accent-primary-rgb),0.7)] transition-[width,background-color]"
+                    : "h-2 w-2 bg-(--bg-primary)/50 transition-[width,background-color] hover:w-5 hover:bg-(--bg-primary)/90")
                 }
               />
             ))}

@@ -39,7 +39,11 @@ export default function ClientCollections({
           action={{ label: "Ver catálogo", href: "/products" }}
         />
       ) : (
-        <ul className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4 md:grid-cols-3">
+        // S-14q: grilla por consultas de contenedor (igual que el catálogo):
+        // 2 columnas en teléfono, 3 desde 640px de ancho útil. El `@container`
+        // va en el envoltorio: un elemento no se consulta a sí mismo.
+        <div className="@container mx-auto w-full max-w-5xl">
+        <ul className="grid grid-cols-2 gap-4 @min-[640px]:grid-cols-3">
           {collections.map((collection) => (
             <li key={collection.id}>
               <Link
@@ -73,6 +77,7 @@ export default function ClientCollections({
             </li>
           ))}
         </ul>
+        </div>
       )}
     </main>
   );

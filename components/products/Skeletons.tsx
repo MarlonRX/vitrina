@@ -35,7 +35,7 @@ function SkeletonFilters() {
   return (
     <aside
       aria-hidden
-      className="sticky top-24 flex max-h-[calc(100dvh-7rem)] min-h-0 flex-col gap-4 self-start rounded-lg border border-(--border-primary) bg-(--bg-surface) p-4"
+      className="sticky top-24 hidden max-h-[calc(100dvh-7rem)] min-h-0 flex-col gap-4 self-start rounded-lg border border-(--border-primary) bg-(--bg-surface) p-4 md:flex"
     >
       <div className="flex items-baseline justify-between">
         <Bar className="h-4 w-20" />
@@ -71,10 +71,18 @@ export function GridSkeleton({ centered = false }: { centered?: boolean }) {
       <div className="grid gap-8 md:grid-cols-[300px_1fr]">
         <SkeletonFilters />
         <div className="flex min-w-0 flex-col gap-6">
-          <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-            {Array.from({ length: GRID_CARD_COUNT }).map((_, index) => (
-              <SkeletonCard key={index} />
-            ))}
+          {/* S-14q: en móvil el panel se vuelve barra sticky + gaveta; el
+              esqueleto imita esa barra para que el salto no mueva el layout. */}
+          <div className="skeleton-shimmer h-11 w-full rounded-lg md:hidden" />
+          {/* S-14q: espejo de ProductGrid — mismo patrón @container (envoltorio)
+              + grid hijo con variantes @min-[Npx], con los MISMOS umbrales,
+              para que esqueleto y contenido calculen idénticas columnas. */}
+          <div className="@container">
+            <div className="grid grid-cols-1 gap-3 @min-[320px]:grid-cols-2 @min-[480px]:gap-4 @min-[520px]:grid-cols-3 @min-[700px]:grid-cols-4 @min-[880px]:grid-cols-5 @min-[1010px]:grid-cols-6 @min-[1150px]:grid-cols-7">
+              {Array.from({ length: GRID_CARD_COUNT }).map((_, index) => (
+                <SkeletonCard key={index} />
+              ))}
+            </div>
           </div>
           <div className="flex items-center justify-center gap-2">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -154,19 +162,23 @@ export function CollectionsSkeleton() {
         <Bar className="h-9 w-56 rounded-md" />
         <Bar className="h-4 w-80 max-w-full opacity-70" />
       </div>
-      <div className="mx-auto grid w-full max-w-5xl grid-cols-2 gap-4 md:grid-cols-3">
-        {Array.from({ length: COLLECTION_CARDS }).map((_, index) => (
-          <div
-            key={index}
-            className="flex flex-col gap-1 overflow-hidden border border-(--border-primary) bg-(--bg-surface)"
-          >
-            <div className="skeleton-shimmer aspect-[4/3] w-full" />
-            <div className="flex items-center justify-between px-3 py-2.5">
-              <Bar className="h-4 w-2/3" />
-              <Bar className="h-3 w-8 opacity-70" />
+      {/* S-14q: espejo de ClientCollections — @container en el envoltorio,
+          grid en el hijo (una consulta nunca se resuelve contra sí misma). */}
+      <div className="@container mx-auto w-full max-w-5xl">
+        <div className="grid grid-cols-2 gap-4 @min-[640px]:grid-cols-3">
+          {Array.from({ length: COLLECTION_CARDS }).map((_, index) => (
+            <div
+              key={index}
+              className="flex flex-col gap-1 overflow-hidden border border-(--border-primary) bg-(--bg-surface)"
+            >
+              <div className="skeleton-shimmer aspect-[4/3] w-full" />
+              <div className="flex items-center justify-between px-3 py-2.5">
+                <Bar className="h-4 w-2/3" />
+                <Bar className="h-3 w-8 opacity-70" />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -67,7 +67,10 @@ export default function ProductCard({
               src={product.featuredImage.url}
               alt={product.featuredImage.altText ?? product.title}
               fill
-              sizes="(min-width: 1280px) 14vw, (min-width: 1024px) 16vw, (min-width: 768px) 20vw, (min-width: 640px) 25vw, 33vw"
+              // S-14q: los `sizes` van casados con los umbrales de la grilla
+              // por consultas de contenedor — en teléfono hay 2 columnas
+              // (~45vw por ficha), no 3; en 1920 con 7 columnas reales, ~12vw.
+              sizes="(min-width: 1760px) 12vw, (min-width: 1440px) 13vw, (min-width: 1280px) 15vw, (min-width: 1024px) 17vw, (min-width: 768px) 22vw, (min-width: 520px) 30vw, 45vw"
               loading={eager ? "eager" : "lazy"}
               fetchPriority={eager ? "high" : undefined}
               // S-01.5 (hover reactivo): zoom lento de la foto dentro de la
@@ -97,6 +100,10 @@ export default function ProductCard({
                 "opacity-0 translate-y-1 pointer-events-none",
                 "group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:pointer-events-auto",
                 "focus-visible:opacity-100 focus-visible:translate-y-0 focus-visible:pointer-events-auto",
+                // S-14q: en pantallas táctiles no existe el hover, así que el
+                // botón vive oculto e intocable. Donde el puntero es grueso,
+                // se muestra siempre (36px ya cumplen el mínimo táctil).
+                "[@media(hover:none)]:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:pointer-events-auto",
                 "hover:border-(--accent-primary) hover:bg-(--accent-primary) hover:text-(--text-inverted)",
                 added &&
                   "opacity-100 translate-y-0 pointer-events-auto border-(--accent-primary) bg-(--accent-primary) text-(--text-inverted)",

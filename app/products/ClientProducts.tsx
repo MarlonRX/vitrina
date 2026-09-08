@@ -60,9 +60,10 @@ export default function ClientProducts({
         {activeCollection ? `Catálogo · ${activeCollection.title}` : "Productos"}
       </h1>
 
-      {/* S-14m: filtros de 220px a 300px, mismo que el detalle de
-          colecciones. `min-w-0` en ambos hijos evita desbordes cruzados. */}
-      <div className="grid gap-8 md:grid-cols-[300px_1fr]">
+      {/* S-14q: con el contenedor del layout al 100% en móvil, el panel de
+          300px se oculta (< md) y deja toda la columna a la grilla: ya no
+          aplasta los productos. `min-w-0` evita desbordes cruzados. */}
+      <div className="grid gap-6 md:grid-cols-[300px_1fr] md:gap-8">
         <ProductFiltersForm facets={facets} filters={filters} />
         <div className="flex min-w-0 flex-col gap-6">
           {apiError ? (

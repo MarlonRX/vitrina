@@ -72,7 +72,14 @@ export default function VariantViewer({ product }: { product: Product }) {
                 compareAtPrice={variant.compareAtPrice}
               />
             )}
-            <AddToCartButton product={product} variant={variant} />
+            {/* S-14q: en móvil el CTA queda pegado al borde inferior (con
+                precio siempre a mano) hasta que el usuario agrega; en md+
+                vuelve a su flujo normal. */}
+            <div className="sticky bottom-2 z-30 -mx-2 px-2 pt-2 md:static md:p-0">
+              <div className="rounded-lg border border-(--border-primary) bg-(--bg-surface)/95 p-2 shadow-lg backdrop-blur-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+                <AddToCartButton product={product} variant={variant} />
+              </div>
+            </div>
           </div>
         ) : (
           <StateView

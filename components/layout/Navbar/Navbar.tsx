@@ -11,7 +11,9 @@ import { SearchPaletteButton, SearchPaletteHost } from "./SearchPalette";
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-(--border-primary)/70 bg-(--bg-primary)/70 backdrop-blur-md">
-      <nav className="mx-auto flex h-20 w-[80%] items-center justify-between gap-4 px-4">
+      {/* S-14q: mismo criterio que el layout — ancho completo en móvil para
+          que la fila del logo + búsqueda + canasta + hamburguesa respire. */}
+      <nav className="mx-auto flex h-20 w-full items-center justify-between gap-2 px-4 md:w-[80%] md:gap-4">
         <div className="hidden w-full items-center gap-4 md:flex">
           <Logo className="shrink-0" />
 

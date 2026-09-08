@@ -70,7 +70,7 @@ export default function ProductGallery({ images, alt, activeUrl }: ProductGaller
         fetchPriority="high"
       />
       {images.length > 1 && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {images.map((image, index) => (
             <button
               key={image.url}

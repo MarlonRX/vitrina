@@ -132,9 +132,11 @@ export default function HomeCard({
       aria-label="Productos destacados"
       // S-14d: el carrusel usa casi todo el ancho de la página (antes topaba
       // en max-w-5xl y dejaba columnas muertas a los lados). S-14g: pedido
-      // del usuario — 70% del viewport, centrado, ya no full-bleed.
+      // del usuario — 70% del viewport, centrado, ya no full-bleed. S-14q:
+      // ese 70% era de escritorio; en móvil el carrusel toma el 100%
+      // del contenedor (que ya es ~todo el viewport) para evitar overflow.
       className={cn(
-        "group/carousel relative mx-auto w-[70vw] max-w-[70vw] animate-fade-up",
+        "group/carousel relative mx-auto w-full max-w-full animate-fade-up md:w-[70vw] md:max-w-[70vw]",
         className,
       )}
     >

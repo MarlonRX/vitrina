@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { SlidersHorizontal } from "lucide-react";
 import type { ProductFacets, ProductFilters } from "@/lib/shopify/types";
 import MyButton from "@/components/UIComponents/MyButton";
 import { MyCheckbox } from "@/components/UIComponents/MyCheckbox";
 import { MyInput } from "@/components/UIComponents/MyInput";
 import { MySelect } from "@/components/UIComponents/MySelect";
+import MyDrawer from "@/components/UIComponents/MyDrawer";
+import { cn } from "@/lib/utils";
 
 // S-11 (sistema de diseño) + S-13 (catálogo masivo): con ~250 productos las
 // facetas crecieron muchísimo, así que el panel se rediseñó:
@@ -14,6 +17,13 @@ import { MySelect } from "@/components/UIComponents/MySelect";
 // - grupos de categorías/tags/opciones muestran máx. 5 opciones con "Ver más",
 // - el cuerpo del panel hace scroll interno (max-h) en desktop, pegajoso al
 //   top: el aside nunca estira la página ni produce overflow eterno.
+//
+// S-14q (responsive): el aside desktop se oculta por debajo de md y en su
+// lugar aparece una barra "Filtros" sticky que abre una GAVETA INFERIOR
+// (MyDrawer side=bottom) con el MISMO formulario. El formulario vive en un
+// único componente (`FiltersForm`) renderizado en ambos contenedores — así la
+// lógica de aplicar/limpiar no se duplica y el layout móvil deja de aplastar
+// la grilla de productos.
 
 const SORT_OPTIONS = [
   { value: "RELEVANCE:0", label: "Relevancia" },
@@ -80,30 +90,40 @@ type ProductFiltersProps = {
   filters: ProductFilters;
 };
 
-export default function ProductFiltersForm({
+/** Nº de filtros activos (mismo cálculo en aside, gaveta y barra móvil). */
+function useActiveCount(facets: ProductFacets, filters: ProductFilters) {
+  return (
+    Number(!!filters.collection) +
+    Number(!!filters.search) +
+    filters.tags.length +
+    filters.options.length +
+    Number(filters.minPrice != null || filters.maxPrice != null)
+  );
+}
+
+/**
+ * Formulario de filtros. `variant` decide el contenedor de scroll:
+ *  - "aside": panel pegajoso de desktop con cuerpo desplazable interno.
+ *  - "drawer": dentro de MyDrawer (la gaveta ya aporta su propio scroll).
+ */
+function FiltersForm({
   facets,
   filters,
-}: ProductFiltersProps) {
+  variant,
+  onApplied,
+}: ProductFiltersProps & {
+  variant: "aside" | "drawer";
+  onApplied?: () => void;
+}) {
   const router = useRouter();
-  // S-15: "Aplicar" navega sobre la ruta ACTUAL (/, /products,
-  // /collections/[handle]) en vez de / hardcodeado — los filtros se combinan
-  // sobre cualquier búsqueda/colección sin salir de ella.
-  const pathname = usePathname();
-  const onCollection = /^\/collections\/([^/?#]+)/.exec(pathname);
-
-  // S-13: la búsqueda puede llegar por URL (q=…); el campo vive DENTRO del
+  // S-15: la búsqueda puede llegar por URL (q=…); el campo vive DENTRO del
   // panel para poder filtrar sobre cualquier consulta (filtros mixtos).
   const activeTags = new Set(filters.tags);
   const activeOptions = new Set(
     filters.options.map((o) => `${o.name}:${o.value}`),
   );
   const sortValue = `${filters.sortKey ?? "RELEVANCE"}:${filters.reverse ? "1" : "0"}`;
-  const activeCount =
-    Number(!!filters.collection) +
-    Number(!!filters.search) +
-    filters.tags.length +
-    filters.options.length +
-    Number(filters.minPrice != null || filters.maxPrice != null);
+  const activeCount = useActiveCount(facets, filters);
 
   const cats = useCapped(
     facets.collections.length,
@@ -116,6 +136,12 @@ export default function ProductFiltersForm({
     .find((i) => i >= 0);
   const tags = useCapped(facets.tags.length, selectedTagIdx ?? -1);
 
+  const pathname = usePathname();
+  // S-15: en /collections/[handle] la categoría de la ruta es el default;
+  // elegir la MISMA conserva la vista de colección, elegir otra (o "todas")
+  // sale al catálogo general con el resto de filtros intactos.
+  const onCollection = /^\/collections\/([^/?#]+)/.exec(pathname);
+
   function applyFilters(formData: FormData) {
     const params = new URLSearchParams();
 
@@ -123,9 +149,6 @@ export default function ProductFiltersForm({
     if (q) params.set("q", q);
 
     const collection = formData.get("collection") as string | null;
-    // S-15: en /collections/[handle] la categoría de la ruta es el default;
-    // elegir la MISMA conserva la vista de colección, elegir otra (o "todas")
-    // sale al catálogo general con el resto de filtros intactos.
     let target = pathname;
     if (onCollection) {
       if (collection && collection !== onCollection[1]) {
@@ -156,6 +179,7 @@ export default function ProductFiltersForm({
     const qs = params.toString();
     router.push(qs ? `${target}?${qs}` : target);
     router.refresh();
+    onApplied?.();
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -166,12 +190,17 @@ export default function ProductFiltersForm({
   function clearFilters() {
     router.push(pathname);
     router.refresh();
+    onApplied?.();
   }
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky top-24 flex max-h-[calc(100dvh-7rem)] min-h-0 flex-col rounded-lg border border-(--border-primary) bg-(--bg-surface) p-4"
+      className={cn(
+        "flex min-h-0 flex-col rounded-lg border border-(--border-primary) bg-(--bg-surface) p-4",
+        variant === "aside" &&
+          "sticky top-24 max-h-[calc(100dvh-7rem)] h-full",
+      )}
     >
       {/* Cabecera fija del panel: acción principal siempre a mano */}
       <div className="flex flex-col gap-3 pb-4">
@@ -210,8 +239,14 @@ export default function ProductFiltersForm({
         />
       </div>
 
-      {/* Cuerpo con scroll interno: el aside no estira la página */}
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain pr-1">
+      {/* Cuerpo: en el aside desktop rueda por dentro; en la gaveta deja que
+          el body del drawer haga de contenedor de scroll (un solo scroll). */}
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-5",
+          variant === "aside" && "overflow-y-auto overscroll-contain pr-1",
+        )}
+      >
         <fieldset className="flex flex-col gap-2.5">
           <legend className={GROUP_LEGEND}>Categorías</legend>
           <MyCheckbox
@@ -260,7 +295,6 @@ export default function ProductFiltersForm({
                 tags.visible(i) ? (
                   <MyCheckbox
                     key={tag}
-                    id={`tag-${tag}`}
                     name="tag"
                     value={tag}
                     defaultChecked={activeTags.has(tag)}
@@ -284,6 +318,7 @@ export default function ProductFiltersForm({
                 min={facets.price.min}
                 max={facets.price.max}
                 step="0.01"
+                inputMode="decimal"
                 defaultValue={filters.minPrice ?? ""}
               />
             </div>
@@ -299,6 +334,7 @@ export default function ProductFiltersForm({
                 min={facets.price.min}
                 max={facets.price.max}
                 step="0.01"
+                inputMode="decimal"
                 defaultValue={filters.maxPrice ?? ""}
               />
             </div>
@@ -351,5 +387,58 @@ function OptionGroup({
         })}
       </Collapsible>
     </fieldset>
+  );
+}
+
+export default function ProductFiltersForm({
+  facets,
+  filters,
+}: ProductFiltersProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const activeCount = useActiveCount(facets, filters);
+
+  return (
+    <>
+      {/* Desktop / tablet grande: el aside pegajoso de siempre. */}
+      <div className="hidden min-h-0 md:block">
+        <FiltersForm facets={facets} filters={filters} variant="aside" />
+      </div>
+
+      {/* Móvil: barra sticky que abre la gaveta inferior. */}
+      <div className="md:hidden">
+        <div className="sticky top-[5.25rem] z-30 -mx-1 bg-(--bg-primary)/90 px-1 py-2 backdrop-blur">
+          <MyButton
+            type="button"
+            variant="outline"
+            onClick={() => setDrawerOpen(true)}
+            leftIcon={<SlidersHorizontal size={16} aria-hidden />}
+            className="w-full"
+            aria-expanded={drawerOpen}
+          >
+            Filtros
+            {activeCount > 0 ? (
+              <span className="ml-1 rounded-full bg-(--accent-primary) px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                {activeCount}
+              </span>
+            ) : null}
+          </MyButton>
+        </div>
+        <MyDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          side="bottom"
+          size="xl"
+          title="Filtrar catálogo"
+          bodyClassName="p-0 sm:p-0"
+        >
+          <FiltersForm
+            facets={facets}
+            filters={filters}
+            variant="drawer"
+            onApplied={() => setDrawerOpen(false)}
+          />
+        </MyDrawer>
+      </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { CollectionsSkeleton } from "@/components/products/Skeletons";
+import { CollectionsSkeleton } from "@/components/products/skeletons/Collections";
 
 // S-14p: espejo de ClientCollections — main sin tope + encabezado centrado +
 // grilla max-w-5xl de tarjetas 4:3.

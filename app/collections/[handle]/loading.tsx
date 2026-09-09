@@ -1,4 +1,4 @@
-import { GridSkeleton } from "@/components/products/Skeletons";
+import { GridSkeleton } from "@/components/products/skeletons/Grid";
 
 // S-14p: espejo del detalle de colección (main sin tope + encabezado
 // centrado + filtros 300px + grilla full de 14).

@@ -6,6 +6,8 @@
 import { useMemo, useState } from "react";
 import type { Product, ProductVariant } from "@/lib/shopify/types";
 import StateView from "@/components/StateView";
+import SplitText from "@/components/reactbits/SplitText";
+import ShinyText from "@/components/reactbits/ShinyText";
 import { MySelect } from "@/components/UIComponents/MySelect";
 import ProductPrice from "@/components/products/ProductPrice";
 import AddToCartButton from "./AddToCartButton";
@@ -47,8 +49,19 @@ export default function VariantViewer({ product }: { product: Product }) {
         activeUrl={variant?.image?.url ?? null}
       />
       <div className="flex flex-col gap-4">
-        <h1>{product.title}</h1>
-        <p className="text-sm text-(--text-secondary)">{product.vendor}</p>
+        {/* S-17 (React Bits): título revelado letra a letra y vendor con
+            barrido de brillo. */}
+        <h1>
+          <SplitText text={product.title} delay={18} duration={0.45} />
+        </h1>
+        <p className="text-sm">
+          <ShinyText
+            text={product.vendor}
+            speed={4}
+            color="var(--text-secondary)"
+            shineColor="var(--accent-primary)"
+          />
+        </p>
         {product.availableForSale ? (
           <div className="flex flex-col gap-4">
             {/* S-11: los <select> crudos de variantes ahora son MySelect. */}

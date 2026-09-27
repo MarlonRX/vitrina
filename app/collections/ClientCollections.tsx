@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { Collection } from "@/lib/shopify/types";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import StateView from "@/components/StateView";
+import { BentoCard, BentoGrid } from "@/components/reactbits/MagicBento";
+import ShinyText from "@/components/reactbits/ShinyText";
+import { Reveal } from "@/components/ui/Reveal";
 
 export default function ClientCollections({
   collections,
@@ -18,6 +21,11 @@ export default function ClientCollections({
       <div className="flex flex-col items-center gap-2 text-center">
         <Breadcrumbs
           items={[{ label: "Inicio", href: "/" }, { label: "Colecciones" }]}
+        />
+        <ShinyText
+          text="La vitrina por dentro"
+          speed={4}
+          className="text-xs font-semibold uppercase tracking-[0.35em] md:text-sm"
         />
         <h1 className="text-3xl md:text-4xl">Colecciones</h1>
         <p className="max-w-md text-sm text-(--text-secondary)">
@@ -42,13 +50,22 @@ export default function ClientCollections({
         // S-14q: grilla por consultas de contenedor (igual que el catálogo):
         // 2 columnas en teléfono, 3 desde 640px de ancho útil. El `@container`
         // va en el envoltorio: un elemento no se consulta a sí mismo.
-        <div className="@container mx-auto w-full max-w-5xl">
+        // S-17 (React Bits): el envoltorio es el BentoGrid - spotlight global
+        // y glow por tarjeta que siguen al cursor; cada ficha es BentoCard
+        // (partículas + ripple al clic) con revelado escalonado.
+        <BentoGrid className="@container mx-auto w-full max-w-5xl">
         <ul className="grid grid-cols-2 gap-4 @min-[640px]:grid-cols-3">
-          {collections.map((collection) => (
-            <li key={collection.id}>
+          {collections.map((collection, index) => (
+            <li key={collection.id} className="h-full">
+              <Reveal delay={index * 70} className="h-full">
+                <BentoCard
+                  enableStars
+                  clickEffect
+                  className="h-full rounded-md border border-(--border-primary) bg-(--bg-surface) transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-(--accent-primary)/40 hover:shadow-lg"
+                >
               <Link
                 href={`/collections/${collection.handle}`}
-                className="group/col flex flex-col gap-1 overflow-hidden border border-(--border-primary) bg-(--bg-surface) transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-(--accent-primary)/40 hover:shadow-lg"
+                className="group/col flex h-full flex-col gap-1 overflow-hidden"
               >
                 {/* S-14c: cada colección luce su foto aprobada (CDN de la
                     tienda); sin imagen, caja punteada como en las fichas. */}
@@ -74,10 +91,12 @@ export default function ClientCollections({
                   </p>
                 </div>
               </Link>
+                </BentoCard>
+              </Reveal>
             </li>
           ))}
         </ul>
-        </div>
+        </BentoGrid>
       )}
     </main>
   );

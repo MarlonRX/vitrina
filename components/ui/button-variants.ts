@@ -4,6 +4,8 @@
 export const buttonVariants = {
   variant: {
     default: [
+      // React Bits (btn-shine): barrido de brillo al hover en todo CTA primario.
+      "btn-shine",
       "text-(--text-inverted) shadow-sm hover:shadow-lg",
       "hover:-translate-y-0.5 active:translate-y-0 active:shadow-md",
     ].join(" "),

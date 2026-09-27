@@ -16,7 +16,8 @@ import urllib.error
 
 sys.path.insert(0, os.path.dirname(__file__))
 import catalog_admin as ca  # noqa: E402
-from presets_v2 import COLORS as PALETA, FORMAS, render  # noqa: E402
+from presets_v2 import COLORS as PALETA  # noqa: E402
+from presets_v3 import render  # noqa: E402  (estilo "estudio" aprobado)
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 STATE = "C:/Users/marlon/AppData/Local/Temp/vitrina-visuals.json"
@@ -60,15 +61,7 @@ PALETA_COL = {
     "Salvia marina": "salvia", "Azul petróleo": "indigo", "Azul índigo": "indigo",
 }
 
-# silueta extra (misma gramática visual) no renderizada en la hoja: cuaderno
-def cuaderno(d, m, k, o):
-    from presets_v2 import shadow
-    shadow(d, (300, 620, 620, 660))
-    d.rounded_rectangle([280, 280, 640, 640], radius=28, fill=m)
-    d.rectangle([280, 280, 316, 640], fill=k)                   # lomo
-    d.rounded_rectangle([350, 330, 580, 400], radius=14, fill=k)  # etiqueta
-    d.rounded_rectangle([372, 350, 558, 380], radius=10, fill=m)
-FORMAS["cuaderno"] = cuaderno
+# La silueta "cuaderno" vive en presets_v2.FORMAS junto al resto.
 
 
 def item_de(titulo):
@@ -80,13 +73,13 @@ def item_de(titulo):
 
 def preset_file(shape, pal):
     """ruta png local, generándola si falta."""
-    p = f"{ROOT}/public/presets/{shape}-{pal}.png"
+    p = f"{ROOT}/public/presets/{shape}-{pal}.webp"
     if not os.path.exists(p):
-        render(shape, pal).save(p)
+        render(shape, pal).save(p, "WEBP", quality=90, method=6)
     return p
 
 
-# ---------- subida PNG ----------
+# ---------- subida WebP (S-17d: ~4x menos peso que PNG, mismo CDN) ----------
 def upload_png(path, alt, cache):
     key = os.path.basename(path)
     if key in cache:
@@ -96,7 +89,7 @@ def upload_png(path, alt, cache):
         """mutation($i:[StagedUploadInput!]!){ stagedUploadsCreate(input:$i){
           stagedTargets{ url resourceUrl parameters{ name value } }
           userErrors{ field message } } }""",
-        {"i": [{"resource": "IMAGE", "filename": key, "mimeType": "image/png",
+        {"i": [{"resource": "IMAGE", "filename": key, "mimeType": "image/webp",
                 "fileSize": str(size), "httpMethod": "PUT"}]},
     )
     res = (d.get("data") or {}).get("stagedUploadsCreate")
@@ -104,7 +97,7 @@ def upload_png(path, alt, cache):
         print("staged fail", key, d.get("errors") or res)
         return None
     t = res["stagedTargets"][0]
-    hdr = {"Content-Type": "image/png"}
+    hdr = {"Content-Type": "image/webp"}
     for kv in t.get("parameters") or []:
         n = kv["name"].lower()
         if n.startswith("x-amz") or n in ("cache-control", "content-type"):
@@ -153,7 +146,7 @@ def link():
     # 1) banco de archivos: solo las combinaciones necesarias
     needed = {(s_, p_) for s_ in set(SHAPE.values()) for p_ in PALETA}
     for s_, p_ in sorted(needed):
-        if f"{s_}-{p_}.png" in st["upload"]:
+        if f"{s_}-{p_}.webp" in st["upload"]:
             continue
         gid = upload_png(preset_file(s_, p_), f"{s_} {p_}", st["upload"])
         print("subida", s_, p_, gid)
@@ -173,6 +166,12 @@ def link():
                 page["pageInfo"]["hasNextPage"] = False
                 break
             shape = SHAPE.get(item_de(prod["title"]), "cuenco")
+            # S-17d (re-ejecución con WebP): limpia el media previo para que
+            # los alts COLOR:: viejos no compitan con los nuevos al mapear.
+            dm0 = ca.gql(Q_MEDIA, {"id": prod["id"]})
+            old_ids = [m["id"] for m in dm0["data"]["product"]["media"]["nodes"]]
+            if old_ids:
+                ca.gql(MUT_DELETE, {"p": prod["id"], "ids": old_ids})
             colors = []
             for v in prod["variants"]["nodes"]:
                 for so in v["selectedOptions"]:
@@ -183,7 +182,7 @@ def link():
             files = []
             ok = True
             for c in colors:
-                gid = st["upload"].get(f"{shape}-{c}.png")
+                gid = st["upload"].get(f"{shape}-{c}.webp")
                 if not gid:
                     ok = False; break
                 files.append({"id": gid, "alt": f"COLOR::{c}", "contentType": "IMAGE"})

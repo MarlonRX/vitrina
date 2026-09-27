@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/calendar.css";
+@import "../styles/reactbits.css";
 /*
   Variables CSS del único tema claro ("Ivory & Bordeaux")
   Paleta elegante para ecommerce: marfil cálido, texto tinta y acento bordeaux.
@@ -146,8 +147,12 @@ main {
    La serif editorial (Fraunces) queda SOLO para los momentos grandes —h1/h2
    de hero, páginas y detalle— y baja de 700 a 600 para no verse pesante.
    De h3 hacia abajo (títulos de ProductCard, secciones pequeñas, modales)
-   manda DM Sans 600: legible y ligero en tamaños chicos, que es donde la
-   serif cansaba la vista. */
+    manda DM Sans 600: legible y ligero en tamaños chicos, que es donde la
+    serif cansaba la vista. */
+/* S-17: la tipografía base vive en @layer base - fuera de capa, estos
+   selectores de elemento ganaban a las utilidades de Tailwind (un
+   `text-(--bg-primary)` sobre un h1/h2 no pintaba nada). */
+@layer base {
 h1,
 h2 {
     font-family: var(--font-display);
@@ -248,6 +253,7 @@ blockquote {
 hr {
     border: none;
     border-top: 1px solid rgb(var(--gray-light));
+}
 }
 
 @media (max-width: 720px) {

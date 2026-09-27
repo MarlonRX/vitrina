@@ -2,6 +2,8 @@ import Link from "next/link";
 import HeroCarousel from "@/components/home/HeroCarousel";
 import { heroSlides } from "@/components/home/heroSlides";
 import HomeCard from "@/components/home/HomeCard";
+import CollectionsBento from "@/components/home/CollectionsBento";
+import AuroraBand from "@/components/home/AuroraBand";
 import ProductGrid from "@/components/products/ProductGrid";
 import type { Collection, Product } from "@/lib/shopify/types";
 
@@ -13,6 +15,7 @@ interface ClientHomeProps {
 
 export default function ClientHome({
   products,
+  collections,
   hasActiveFilters,
 }: ClientHomeProps) {
   // S-10 (accesibilidad): el `<main>` da destino al atajo "saltar al
@@ -50,6 +53,16 @@ export default function ClientHome({
           maxItems={15}
           className="z-10 -mt-28 md:-mt-64"
         />
+      )}
+
+      {/* S-17 (rework React Bits): solo la home "vitrina" lleva las secciones
+          de racconto - colecciones en bento mágico y banda manifiesto con
+          aurora. Con filtros activos la página es un listado de resultados. */}
+      {!hasActiveFilters && (
+        <>
+          <CollectionsBento collections={collections} />
+          <AuroraBand />
+        </>
       )}
     </main>
   );

@@ -170,6 +170,18 @@ FORMAS = {
 }
 
 
+# silueta de papelería (misma gramática visual): cuaderno de tapa dura
+def cuaderno(d, m, k, o):
+    shadow(d, (300, 620, 620, 660))
+    d.rounded_rectangle([280, 280, 640, 640], radius=28, fill=m)
+    d.rectangle([280, 280, 316, 640], fill=k)                   # lomo
+    d.rounded_rectangle([350, 330, 580, 400], radius=14, fill=k)  # etiqueta
+    d.rounded_rectangle([372, 350, 558, 380], radius=10, fill=m)
+
+
+FORMAS["cuaderno"] = cuaderno
+
+
 def render(shape, color):
     m, k, bg = COLORS[color]
     img, d = canvas(bg)

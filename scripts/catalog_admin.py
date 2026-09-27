@@ -54,7 +54,12 @@ def gql(query, variables=None):
             "Content-Type": "application/json",
         },
     )
-    return json.load(urllib.request.urlopen(req))
+    try:
+        return json.load(urllib.request.urlopen(req))
+    except urllib.error.HTTPError as e:
+        # 401/403/4xx como dato, no excepcin: token() puede regenerar el
+        # token y los llamadores ven userErrors/errors como siempre.
+        return {"errors": [{"message": f"HTTP {e.code}: {e.read()[:200]!r}"}]}
 
 
 MUT_SET = """

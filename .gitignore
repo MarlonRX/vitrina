@@ -56,3 +56,6 @@ next-env.d.ts
 /public/aprobacion/
 
 pd.html
+
+# muestras de aprobacin v3 (regenerables con scripts/presets_v3.py)
+/public/muestras-v3/

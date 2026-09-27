@@ -1,10 +1,18 @@
 "use client";
 
+// S-17 (rework del hero, planteamiento del portfolio): escenario oscuro
+// full-bleed con aurora WebGL cuya paleta viaja al compás de la diapositiva
+// activa, y módulo visual enmarcado a la derecha (crossfade de imágenes,
+// contador 01/03 y barra de info con enlace sincronizado). El texto vive
+// sobre el escenario oscuro, nunca sobre la foto: contraste garantizado.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { heroSlides, type HeroSlide } from "./heroSlides";
-import HeroSlideView from "./HeroSlideView";
-import MyButton from "../UIComponents/MyButton";
+import Image from "next/image";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import Aurora from "@/components/reactbits/Aurora";
+import MyButton from "../UIComponents/MyButton";
+import HeroSlideView from "./HeroSlideView";
+import { heroSlides, type HeroSlide } from "./heroSlides";
 
 interface HeroCarouselProps {
   slides?: HeroSlide[];
@@ -12,164 +20,49 @@ interface HeroCarouselProps {
   intervalMs?: number;
 }
 
-const TRANSITION_MS = 700;
-const TRANSITION = `transform ${TRANSITION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-// Colchón para ejecutar el salto invisible solo cuando la transición ya terminó.
-const SNAP_DELAY_MS = TRANSITION_MS + 60;
-
 const ARROW_BUTTON_CLASS = [
-  "absolute top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 rounded-full md:inline-flex",
-  "border border-(--bg-primary)/30 bg-black/25 text-(--bg-primary)",
+  "absolute top-1/2 z-10 h-11 w-11 -translate-y-1/2 rounded-full",
+  "border border-(--bg-primary)/30 bg-black/35 text-(--bg-primary)",
   "shadow-lg backdrop-blur-md",
-  // S-09 (react-doctor no-transition-all): en vez de animar todas las
-  // propiedades, solo las que realmente cambian en hover/active.
-  "transition-[transform,background-color,border-color,box-shadow] duration-300",
-  "hover:scale-110 hover:border-(--bg-primary)/70 hover:bg-black/45 hover:text-(--bg-primary)",
-  "hover:shadow-xl hover:shadow-black/40",
-  "focus-visible:ring-(--bg-primary)/60",
+  "transition-[transform,background-color,border-color,box-shadow,opacity] duration-300",
+  "hover:scale-110 hover:border-(--bg-primary)/70 hover:bg-black/55",
   "active:scale-95",
+  // Solo visibles con el puntero sobre el marco (o foco por teclado).
+  "opacity-0 group-hover/frame:opacity-100 focus-visible:opacity-100",
 ].join(" ");
 
-/**
- * Carrusel de hero con bucle infinito.
- *
- * - Full-bleed: ignora el contenedor del layout y ocupa todo el ancho del
- *   viewport. El `-mt-[120px]` anula el padding superior del layout (-mt-10)
- *   y la altura del navbar sticky (h-20) para que la imagen suba por debajo
- *   del cristal del navbar.
- * - Cada slide es una imagen de fondo con scrim oscuro y un enlace que cubre
- *   toda la superficie (props `image` + `href` de HeroSlide; sin botones).
- * - Al final del carrusel hay un degradado que lo funde con el fondo de la
- *   página (de 100% del slide a 0%).
- *
- * La pista real es [última, ...slides, primera]: dos diapositivas clonadas en
- * los extremos (`offset = 1`). Todas las animaciones de avance van siempre en
- * el mismo sentido; al aterrizar sobre un clon se espera a que termine la
- * transición y se salta SIN animación a la diapositiva verdadera equivalente,
- * cuyo fotograma es idéntico al del clon. Así nunca se ve un rebobinado.
- *
- * S-09 (LCP): el contenedor ya no usa `animate-fade-up` — el keyframe arranca
- * en opacidad 0 sobre la imagen del LCP y retrasa su paint.
- */
 export default function HeroCarousel({
   slides = heroSlides,
   intervalMs = 6000,
 }: HeroCarouselProps) {
   const count = slides.length;
   const hasLoop = count > 1;
-  const offset = hasLoop ? 1 : 0;
-  const lastIndex = count + offset; // posición del clon del inicio
-
-  // `index` es la posición dentro de la pista:
-  //   count>1 → 0 (clon del final), 1..count (reales), count+1 (clon del inicio)
-  //   count=1 → 0
-  const [index, setIndex] = useState(offset);
-  const [animate, setAnimate] = useState(true);
+  const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  // Controla que las flechas solo existan en el DOM con el mouse encima.
-  const [hovered, setHovered] = useState(false);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
+  const active = slides[Math.min(index, count - 1)] as HeroSlide;
 
-  // S-01.5 (factor wow): parallax sutil del fondo del hero. No usa estado de
-  // React (cero re-renders por scroll): escribe `--hero-shift` directo en el
-  // nodo, y las imágenes lo consumen vía `translate` (propiedad independiente
-  // de `scale`, que sigue con el hover). Se desactiva con reduced-motion y
-  // queda cubierto por el CSS global de S-10.
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let raf = 0;
-    function onScroll() {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const el = sectionRef.current;
-        if (!el) return;
-        // Avanza hasta -26px a lo largo de los primeros ~220px de scroll.
-        const shift = -Math.min(window.scrollY, 220) * 0.12;
-        el.style.setProperty("--hero-shift", `${shift.toFixed(1)}px`);
-      });
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  // Índice acotado a la pista: si `slides` cambiara de longitud entre renders,
-  // evita posicionar fuera de rango (pantalla en blanco).
-  const display = Math.min(Math.max(index, 0), lastIndex);
-
-  // Diapositiva real (0-based) que muestran los puntos y las etiquetas ARIA.
-  const activeSlide =
-    count === 0 ? 0 : (((display - offset) % count) + count) % count;
-
-  const goNext = useCallback(() => {
-    // Sobre el clon no se avanza más: el salto al original ya está programado.
-    if (!hasLoop || display === lastIndex) return;
-    setAnimate(true);
-    setIndex(display + 1);
-  }, [hasLoop, display, lastIndex]);
-
-  const goPrev = useCallback(() => {
-    // Sobre el clon no se retrocede más: el salto al original ya está programado.
-    if (!hasLoop || display === 0) return;
-    setAnimate(true);
-    setIndex(display - 1);
-  }, [hasLoop, display]);
-
-  const goToSlide = useCallback(
-    (slide: number) => {
-      setAnimate(true);
-      setIndex(slide + offset);
-    },
-    [offset],
+  const goNext = useCallback(
+    () => setIndex((value) => (value + 1) % count),
+    [count],
   );
-
-  useEffect(() => {
-    if (!hasLoop) return;
-    const landedOnClone = display === 0 || display === lastIndex;
-    if (!landedOnClone) return;
-
-    const id = setTimeout(() => {
-      // 1) Apagar la transición en el DOM y forzar un reflow: así el navegador
-      //    consolida el estado "transition: none" ANTES de que React cambie el
-      //    transform (React aplica `transform` antes que `transition` al
-      //    actualizar estilos; sin esto el salto podría animarse en reversa).
-      // 2) Saltar al slide real equivalente con el mismo fotograma visible.
-      const el = trackRef.current;
-      if (el) {
-        el.style.transition = "none";
-        void el.offsetWidth;
-      }
-      setAnimate(false);
-      setIndex(display === lastIndex ? 1 : count);
-    }, SNAP_DELAY_MS);
-
-    return () => clearTimeout(id);
-  }, [display, hasLoop, lastIndex, count]);
-
-  // Reactivar la animación en el siguiente frame tras el salto.
-  useEffect(() => {
-    if (animate) return;
-    const raf = requestAnimationFrame(() => setAnimate(true));
-    return () => cancelAnimationFrame(raf);
-  }, [animate]);
+  const goPrev = useCallback(
+    () => setIndex((value) => (value - 1 + count) % count),
+    [count],
+  );
+  const goToSlide = useCallback(
+    (slide: number) => setIndex(((slide % count) + count) % count),
+    [count],
+  );
 
   // Autoplay: se pausa al interactuar y se omite con movimiento reducido.
   useEffect(() => {
     if (paused || !hasLoop) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
     const id = setInterval(goNext, intervalMs);
     return () => clearInterval(id);
   }, [paused, hasLoop, intervalMs, goNext]);
 
-  // S-14q (responsive): las flechas exigen hover y los puntos son diminutos,
-  // así que en táctil no había forma de navegar. Deslizar la pista con el
-  // dedo (o el puntero) avanza/retrocede una diapositiva.
+  // Deslizar el marco con el dedo o el puntero avanza/retrocede.
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const onPointerDown = useCallback((event: React.PointerEvent) => {
     pointerStart.current = { x: event.clientX, y: event.clientY };
@@ -181,7 +74,6 @@ export default function HeroCarousel({
       if (!start) return;
       const dx = event.clientX - start.x;
       const dy = event.clientY - start.y;
-      // Horizontal claro y suficientemente largo; ignora scroll vertical.
       if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
       if (dx < 0) goNext();
       else goPrev();
@@ -191,24 +83,13 @@ export default function HeroCarousel({
 
   if (count === 0) return null;
 
-  const track = hasLoop ? [slides[count - 1], ...slides, slides[0]] : slides;
-
   return (
     <section
-      ref={sectionRef}
       aria-roledescription="carrusel"
       aria-label="Destacados de la temporada"
-      className="group relative -mt-30 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] overflow-hidden"
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onMouseEnter={() => {
-        setHovered(true);
-        setPaused(true);
-      }}
-      onMouseLeave={() => {
-        setHovered(false);
-        setPaused(false);
-      }}
+      className="group relative -mt-30 ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] overflow-hidden bg-[#1c0f12]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
       onKeyDown={(event) => {
@@ -216,72 +97,111 @@ export default function HeroCarousel({
         if (event.key === "ArrowLeft") goPrev();
       }}
     >
-      {/* Pista: todas las diapositivas se renderizan lado a lado, así la altura
-          es la de la más alta y no salta al cambiar. */}
-      <div
-        ref={trackRef}
-        className="flex"
-        style={{
-          transform: `translateX(-${display * 100}%)`,
-          transition: animate ? TRANSITION : "none",
-          // S-09 (react-doctor no-permanent-will-change): la pista GPU solo se
-          // reserva mientras hay una transición en vuelo; en reposo se libera.
-          willChange: animate ? "transform" : "auto",
-        }}
-      >
-        {track.map((slide, position) => (
-          <HeroSlideView
-            key={`${position}-${slide.eyebrow}`}
-            slide={slide}
-            isActive={position === display}
-            isFirstReal={position === offset}
-            position={position}
-            count={count}
-            hasLoop={hasLoop}
-            activeSlide={activeSlide}
-          />
-        ))}
+      {/* Fondo al compás: la aurora interpola su paleta hacia la del slide
+          activo (lerp dentro de Aurora), así el escenario respira con el
+          carrusel en vez de quedar estático bajo él. */}
+      <div aria-hidden className="absolute inset-0">
+        <Aurora
+          colorStops={active.palette}
+          amplitude={1.15}
+          blend={0.62}
+          speed={0.5}
+        />
       </div>
-      {/* Degradado final: funde el carrusel (100%) con el fondo de la página.
-          El stop intermedio (75% de opacidad al 25% de la altura) emula la
-          curva resultante de apilar dos capas de degradado idénticas: la
-          opacidad total es 1-(1-α)², que no es lineal. */}
+      {/* Viñeta: asienta el texto crema y encuadra el módulo. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-[radial-gradient(95%_85%_at_50%_15%,transparent_0%,rgba(20,10,12,0.62)_100%)]"
+      />
+
+      <div className="relative z-1 mx-auto flex min-h-[70vh] w-full max-w-6xl flex-col justify-center gap-12 px-6 pt-28 pb-44 md:min-h-[82vh] md:grid md:grid-cols-[1.05fr_0.95fr] md:items-center md:gap-16 md:px-8 md:pt-32 md:pb-72">
+        {/* Columna de texto: se remonta por índice para re-disparar el
+            revelado de SplitText y los fade-up en cada diapositiva. */}
+        <HeroSlideView key={index} slide={active} />
+
+        {/* Módulo visual enmarcado, como en el portfolio: cabecera con
+            contador, marco con crossfade y barra de info sincronizada. */}
+        <div className="flex flex-col gap-4" onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-(--bg-primary)/60">
+              Pieza destacada
+            </p>
+            <span className="font-mono text-[11px] tracking-[0.2em] text-(--bg-primary)/60">
+              {String(index + 1).padStart(2, "0")} /{" "}
+              {String(count).padStart(2, "0")}
+            </span>
+          </div>
+
+          <div className="group/frame relative aspect-[4/5] w-full overflow-hidden rounded-xl border border-(--bg-primary)/15 shadow-2xl shadow-black/50 sm:aspect-[4/3] md:aspect-[4/5]">
+            {slides.map((slide, slideIndex) => (
+              <Image
+                key={slide.eyebrow}
+                src={slide.image}
+                alt={slide.titleLines.join(" ")}
+                fill
+                sizes="(min-width: 768px) 42vw, 92vw"
+                loading={slideIndex === 0 ? "eager" : "lazy"}
+                fetchPriority={slideIndex === 0 ? "high" : "auto"}
+                aria-hidden={slideIndex !== index}
+                className={`object-cover transition-[opacity,transform] duration-700 ease-out group-hover/frame:scale-[1.03] ${
+                  slideIndex === index
+                    ? "opacity-100 scale-100"
+                    : "opacity-0 scale-[1.05]"
+                }`}
+              />
+            ))}
+            {hasLoop && (
+              <>
+                <MyButton
+                  variant="ghost"
+                  size="icon"
+                  onClick={goPrev}
+                  aria-label="Diapositiva anterior"
+                  tooltip="Anterior"
+                  leftIcon={<ChevronLeft className="h-5 w-5" aria-hidden />}
+                  className={`${ARROW_BUTTON_CLASS} left-3`}
+                />
+                <MyButton
+                  variant="ghost"
+                  size="icon"
+                  onClick={goNext}
+                  aria-label="Diapositiva siguiente"
+                  tooltip="Siguiente"
+                  leftIcon={<ChevronRight className="h-5 w-5" aria-hidden />}
+                  className={`${ARROW_BUTTON_CLASS} right-3`}
+                />
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-4 border-t border-(--bg-primary)/15 pt-4">
+            <p className="truncate text-sm text-(--bg-primary)/70">
+              {active.eyebrow} — {active.titleLines.join(" ")}
+            </p>
+            <Link
+              href={active.href}
+              className="group/cta inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-(--accent-secondary) transition-colors hover:text-(--bg-primary)"
+            >
+              Ver colección
+              <ChevronRight
+                size={16}
+                aria-hidden
+                className="transition-transform group-hover/cta:translate-x-1"
+              />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Degradado final: funde el escenario con el fondo de la página. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0 z-4 h-24 bg-[linear-gradient(to_top,var(--bg-primary)_0%,color-mix(in_srgb,var(--bg-primary)_75%,transparent)_25%,transparent_50%)] md:h-28"
       />
 
-      {hasLoop && hovered && (
-        <>
-          <MyButton
-            variant="ghost"
-            size="icon"
-            onClick={goPrev}
-            aria-label="Diapositiva anterior"
-            tooltip="Anterior"
-            leftIcon={<ChevronLeft className="h-5 w-5" aria-hidden />}
-            className={`${ARROW_BUTTON_CLASS} left-3`}
-          />
-          <MyButton
-            variant="ghost"
-            size="icon"
-            onClick={goNext}
-            aria-label="Diapositiva siguiente"
-            tooltip="Siguiente"
-            leftIcon={<ChevronRight className="h-5 w-5" aria-hidden />}
-            className={`${ARROW_BUTTON_CLASS} right-3`}
-          />
-        </>
-      )}
-
       {hasLoop && (
-        /* S-14j: el indicador vuelve a ser HORIZONTAL y se planta justo
-           encima del carrusel de ítems: HomeCard solapa el hero 5rem en móvil
-           y 14rem en md (ClientHome), así que el bottom suma ese solape más
-           un respiro. Pastilla de cristal centrada; la diapositiva activa es
-           una barra burdeos que se estira con resplandor, el resto puntos
-           crema que se encienden al hover. */
-        /* S-10: <nav> real con su nombre accesible. */
+        /* Indicador: pastilla de cristal centrada sobre el solape de
+           HomeCard (7rem en móvil, 16rem en md, más un respiro). */
         <nav
           aria-label="Ir a una diapositiva"
           className="absolute bottom-[7.75rem] left-1/2 z-30 -translate-x-1/2 md:bottom-[16.75rem]"
@@ -293,15 +213,14 @@ export default function HeroCarousel({
                 type="button"
                 onClick={() => goToSlide(slideIndex)}
                 aria-label={`Ir a la diapositiva ${slideIndex + 1} de ${count}`}
-                aria-current={slideIndex === activeSlide}
+                aria-current={slideIndex === index}
                 className={
-                  // S-09 (react-doctor no-transition-all): solo animan lo
-                  // que cambian: largo, fondo y sombra. S-14q: el área táctil
-                  // se agranda con relleno invisible (la píldora visual sigue
-                  // midiendo h-2; con p-2 -m-2 los hits se juntan justitos al
-                  // gap-2 del contenedor, sin solaparse entre sí).
-                  "touch-manipulation rounded-full p-2 -m-2 " +
-                  (slideIndex === activeSlide
+                  /* S-17c: el truco anterior de agrandar el hit con `p-2 -m-2`
+                     inflaba el fondo del botón (el padding se pinta) y los
+                     puntos se solapaban. El área táctil ahora crece con un
+                     pseudo-elemento invisible: cero efecto en el layout. */
+                  "relative touch-manipulation rounded-full after:absolute after:-inset-2 after:content-[''] " +
+                  (slideIndex === index
                     ? "h-2 w-10 bg-(--accent-primary) shadow-[0_0_12px_rgb(var(--accent-primary-rgb),0.7)] transition-[width,background-color]"
                     : "h-2 w-2 bg-(--bg-primary)/50 transition-[width,background-color] hover:w-5 hover:bg-(--bg-primary)/90")
                 }

@@ -14,37 +14,30 @@ export interface HeroSlide {
   titleLines: string[];
   description: string;
   /**
-   * Imagen de fondo que cubre toda la diapositiva (se recorta con
-   * `object-cover` y se oscurece con un scrim para que el texto se lea).
+   * Imagen de la diapositiva. S-17: ya no es fondo a sangre sino pieza
+   * enmarcada del módulo visual (el fondo lo pone la aurora), así que la
+   * composición puede ser vertical u horizontal sin romper el texto.
    *
-   * Formato recomendado:
-   * - Tamaño: 1920x1080 px (16:9). Mínimo aceptable: 1440x810 px.
-   * - Extensión: WebP o AVIF (JPG/PNG también funciona; `next/image` la
-   *   re-optimize). Peso objetivo: < 300 KB en la variante de escritorio.
-   * - Composición: mantén el punto de interés centrado. El tercio izquierdo
-   *   queda cubierto por el texto y el scrim oscuro, y el borde inferior se
-   *   desvanece hacia el fondo de la página.
-   * - URL: absoluta (`https://…`) o de `/public` (`/hero.webp`). Si es un
-   *   dominio remoto, debe estar listado en `images.remotePatterns` de
-   *   `next.config.ts`, o `next/image` lo rechazará con error 400.
+   * Formato recomendado: WebP/JPG < 300 KB; URL absoluta o de `/public`
+   * (los dominios remotos deben estar en `images.remotePatterns` de
+   * `next.config.ts`).
    */
   image: string;
   /**
-   * Destino al que navega la diapositiva entera al hacer clic. No hay
-   * botones internos: toda la superficie es el enlace.
+   * Destino del CTA y del enlace de la barra de info de la diapositiva.
    */
   href: string;
+  /**
+   * S-17: paleta de la aurora de fondo mientras esta diapositiva está
+   * activa. El fondo viaja suave de una paleta a la siguiente (lerp en
+   * `Aurora`), así el escenario cambia al compás del carrusel.
+   */
+  palette: [string, string, string];
 }
 
 /**
- * Placeholders: fotos de producto del CDN de la tienda (dominio ya
- * permitido en `remotePatterns`). Sustituir por imágenes reales de hero
- * cuando estén disponibles.
- */
-/**
  * Placeholders: ilustraciones del propio catálogo demo, alojadas en el CDN de
- * la tienda (dominio ya permitido en `remotePatterns`). Composición vertical
- * 1200x1500 — el carrusel las recorta con `object-cover`.
+ * la tienda (dominio ya permitido en `remotePatterns`).
  */
 export const heroSlides: HeroSlide[] = [
   {
@@ -55,6 +48,7 @@ export const heroSlides: HeroSlide[] = [
     image:
       "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/vit-hero-ceramica.jpg?v=1788752337",
     href: "/products?collection=ceramica",
+    palette: ["#8c2f3a", "#b4653a", "#d9a066"],
   },
   {
     eyebrow: "Luz cálida",
@@ -64,6 +58,7 @@ export const heroSlides: HeroSlide[] = [
     image:
       "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/vit-hero-luz.jpg?v=1788752345",
     href: "/products?collection=iluminacion",
+    palette: ["#c08a2e", "#e0b45c", "#8c2f3a"],
   },
   {
     eyebrow: "Hilo y telar",
@@ -73,5 +68,6 @@ export const heroSlides: HeroSlide[] = [
     image:
       "https://cdn.shopify.com/s/files/1/0604/6344/8110/files/vit-hero-textil.jpg?v=1788752341",
     href: "/products?collection=textil",
+    palette: ["#a2596a", "#8c2f3a", "#d9c6a8"],
   },
 ];
